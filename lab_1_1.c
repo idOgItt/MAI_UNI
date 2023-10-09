@@ -37,6 +37,10 @@ void push_back(vector* v, unsigned int num, enum vector_status_code* status_code
     if (v->size == v->capacity){
         v->size++;
         temp = (unsigned int*)malloc(sizeof(unsigned int) * v->size); // check;
+        if (temp == NULL){
+            *status_code = vector_created_failure;
+            return;
+        }
         
         for (unsigned int i = 0; i <= v->capacity; i++) {
            temp[i] = v->data[i];
