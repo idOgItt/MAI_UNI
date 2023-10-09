@@ -15,20 +15,42 @@ enum degree_table_status {degree_table_ok, degree_table_overflow, degree_table_f
 
 enum factorial_status_code {fsk_ok, fsk_overflow, fsk_invalid_parameter};
 
-void create_vector(vector* v, unsigned int sz){
+enum vector_status_code {vector_created_failure, realloc_failure, vector_ok, realloc_ok};
+
+void free_vector(vector* v);
+
+void create_vector(vector* v, unsigned int sz, enum vector_status_code* status_code){
     v->size = sz;
     v->data = (unsigned int*)malloc(sizeof(unsigned int) * v->size);
+    if (v->data == NULL) {
+        *status_code = vector_created_failure;
+        return;
+    }
+    else {
+        *status_code = vector_ok;
+    }
     v->capacity = 0;
 }
 
-void push_back(vector* v, unsigned int num){
+void push_back(vector* v, unsigned int num, enum vector_status_code* status_code){
+    unsigned int* temp;
     if (v->size == v->capacity){
         v->size++;
-        v->data = (unsigned int*)realloc(v->data, v->size * sizeof(unsigned int));
+        temp = (unsigned int*)malloc(sizeof(unsigned int) * v->size); // check;
+        
+        for (unsigned int i = 0; i <= v->capacity; i++) {
+           temp[i] = v->data[i];
+        }
+
+        free(v->data);
+        v->data = temp;
+        
+        *status_code = realloc_ok;
     }
     
     v->data[v->capacity] = num;
     v->capacity++;
+    *status_code = realloc_ok;
 }
 
 void print_vector(const vector* v) {
@@ -70,12 +92,14 @@ int main( int argc, char *argv[]) {
         printf("Неправильный флаг: %c\n", flag[0]);
         return 1;
     }
+
+    enum vector_status_code status_code = vector_ok;
     
     switch (flag[1]) {
 
         case 'h':
             vector multiple_nums;
-            create_vector(&multiple_nums, 0);
+            create_vector(&multiple_nums, 0, &status_code);
 
             switch(multiple(number, &multiple_nums)){
 
@@ -113,7 +137,7 @@ int main( int argc, char *argv[]) {
         case 's':
 
             vector digits;
-            create_vector(&digits, 0);
+            create_vector(&digits, 0, &status_code);
             
             switch(digits_number(number,&digits)){
                 
@@ -133,7 +157,7 @@ int main( int argc, char *argv[]) {
 
             for( int column = 0; column < 8; column++){
                 table[column] = (vector*)malloc(sizeof(vector));
-                create_vector(table[column], 0);
+                create_vector(table[column], 0, &status_code);
             }
 
             switch(degree_table(number, table)){
@@ -211,6 +235,7 @@ int main( int argc, char *argv[]) {
 
 
 enum multiple_status multiple(unsigned int number, vector* multiple_nums){
+    enum vector_status_code status_code = vector_ok;
     if (number > 50)
         return multiple_abscent;
 
@@ -218,7 +243,7 @@ enum multiple_status multiple(unsigned int number, vector* multiple_nums){
         return multiple_ivalid;
 
     for (unsigned int multiple = number; multiple <= 100; multiple += number){
-        push_back(multiple_nums, multiple);
+        push_back(multiple_nums, multiple, &status_code);
     }
 
     return multiple_ok;
@@ -235,6 +260,7 @@ int prime_number(unsigned int number){
 }
 
 int digits_number(unsigned int number, vector* digits){
+    enum vector_status_code status_code = vector_ok;
 
     int digits_number_recursive;
 
@@ -250,12 +276,13 @@ int digits_number(unsigned int number, vector* digits){
 
     digits_number_recursive = digits_number(number / 10, digits);
     if (digits_number_recursive == 0)
-        push_back(digits,digit);
+        push_back(digits,digit, &status_code);
 
     return 0;
 }
 
 enum degree_table_status degree_table(unsigned int number, vector** table){
+    enum vector_status_code status_code = vector_ok;
     unsigned int degree_result = 0;
 
     if (number > 9)
@@ -268,7 +295,7 @@ enum degree_table_status degree_table(unsigned int number, vector** table){
         for (int column = 0; column < 8; column ++){
             for (int row = 1; row <= number; row++){
                 degree_result = pow(column + 2, row);
-                push_back(table[column], degree_result);
+                push_back(table[column], degree_result, &status_code);
             }
         }
     return degree_table_ok;   
