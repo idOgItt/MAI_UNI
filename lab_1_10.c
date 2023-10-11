@@ -3,6 +3,9 @@
 #include <string.h>
 #include <math.h>
 
+enum status_code {no_number, vector_failure};
+
+// Объявление функций
 long long int char_to_number(const char* token, int base);
 char* base_to(int base, long long int max_number);
 
@@ -16,7 +19,7 @@ int main() {
         return 1;
     }
 
-    char input[100];
+    char input[100]; // Буфер для ввода строки
     long long int max_number = 0;
     char* base_9_representation = NULL;
     char* base_18_presentation = NULL;
@@ -24,27 +27,48 @@ int main() {
     char* base_36_presentation = NULL;
     char* base_representation = NULL;
 
+    int isFirstNumber = 1;
+
     while (1) {
         printf("Введите число в системе счисления %d (или 'Stop' для завершения): ", base);
         scanf("%s", input);
 
         if (strcmp(input, "Stop") == 0) {
+            if(isFirstNumber){
+                printf("Не было введено число\n");
+                return no_number;
+            }
             break;
         }
+
+        isFirstNumber = 0;
 
         char* token = strtok(input, " ");
 
         while (token != NULL) {
             // Проверяем, что введенное значение находится в допустимом диапазоне для выбранной системы счисления
             long long int number = char_to_number(token, base);
+            // Проверяем, что все символы в числе находятся в допустимом диапазоне для выбранной системы счисления
             int valid = 1;
             int len = strlen(token);
-            for (int i = 0; i < len; i++) {
-                if ((token[i] >= '0' && token[i] < '0' + base) || (token[i] >= 'A' && token[i] < 'A' + base - 10)) {
-                    continue;
-                } else {
-                    valid = 0;
-                    break;
+            if (token[0] == '-') {
+                for (int i = 1 ; i < len; i++) {
+                    if ((token[i] >= '0' && token[i] < '0' + base) || (token[i] >= 'A' && token[i] < 'A' + base - 10)) {
+                        continue;
+                    } else {
+                        valid = 0;
+                        break;
+                    }
+                }
+            }
+            else{
+                for (int i = 0 ; i < len; i++) {
+                    if ((token[i] >= '0' && token[i] < '0' + base) || (token[i] >= 'A' && token[i] < 'A' + base - 10)) {
+                        continue;
+                    } else {
+                        valid = 0;
+                        break;
+                    }
                 }
             }
 
@@ -62,6 +86,7 @@ if (!valid) {
             token = strtok(NULL, " ");
         }
     }
+
 
     // Вызываем функции для получения представлений числа в разных системах счисления
     base_representation = base_to(base, max_number);
@@ -90,19 +115,41 @@ if (!valid) {
 long long int char_to_number(const char* token, int base) {
     long long int decimalValue = 0;
     int len = strlen(token);
-    for (int i = 0; i < len; i++) {
-        int digitValue;
-        if (token[i] >= '0' && token[i] <= '9') {
-            digitValue = token[i] - '0';
-        } else if (token[i] >= 'A' && token[i] <= 'Z') {
-            digitValue = token[i] - 'A' + 10;
-        } else {
-            continue;
+    int is_negative = 0; // Флаг для отслеживания отрицательных чисел
+
+    if (token[0] == '-') {
+        is_negative = 1;
+        // Начинаем с индекса 1, чтобы пропустить знак "-"
+        for (int i = 1; i < len; i++) {
+            // Обработка цифр и букв в числе
+            int digitValue;
+            if (token[i] >= '0' && token[i] <= '9') {
+                digitValue = token[i] - '0';
+            } else if (token[i] >= 'A' && token[i] <= 'Z') {
+                digitValue = token[i] - 'A' + 10;
+            } else {
+                continue; // Пропустить недопустимые символы
+            }
+            decimalValue = decimalValue * base + digitValue;
         }
-        decimalValue = decimalValue * base + digitValue;
+    } else {
+        for (int i = 0; i < len; i++) {
+            // Обработка цифр и букв в числе
+            int digitValue;
+            if (token[i] >= '0' && token[i] <= '9') {
+                digitValue = token[i] - '0';
+            } else if (token[i] >= 'A' && token[i] <= 'Z') {
+                digitValue = token[i] - 'A' + 10;
+            } else {
+                continue; // Пропустить недопустимые символы
+            }
+            decimalValue = decimalValue * base + digitValue;
+        }
     }
-    return decimalValue;
+
+    return is_negative ? -decimalValue : decimalValue;
 }
+
 
 char* base_to(int base, long long int max_number) {
     if (max_number == 0) {
