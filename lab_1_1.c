@@ -19,9 +19,12 @@ enum vector_status_code {vector_created_failure, realloc_failure, vector_ok, rea
 
 void free_vector(vector* v);
 
-void create_vector(vector* v, unsigned int sz, enum vector_status_code* status_code){
-    v->size = sz;
-    v->data = (unsigned int*)malloc(sizeof(unsigned int) * v->size);
+void create_vector(vector* v, unsigned int capacity, enum vector_status_code* status_code){ // min capacity
+    v->capacity = capacity;
+    if (v->size < 4){
+        v->size = 4;
+    }
+    v->data = (unsigned int*)malloc(sizeof(unsigned int) * v->capacity);
     if (v->data == NULL) {
         *status_code = vector_created_failure;
         return;
@@ -29,36 +32,30 @@ void create_vector(vector* v, unsigned int sz, enum vector_status_code* status_c
     else {
         *status_code = vector_ok;
     }
-    v->capacity = 0;
+    v->size = 0;
 }
 
-void push_back(vector* v, unsigned int num, enum vector_status_code* status_code){
+void push_back(vector* v, unsigned int num, enum vector_status_code* status_code) {
     unsigned int* temp;
-    if (v->size == v->capacity){
-        v->size++;
-        temp = (unsigned int*)malloc(sizeof(unsigned int) * v->size); // check;
-        if (temp == NULL){
-            *status_code = vector_created_failure;
+    if (v->capacity == v->size) {
+        v->capacity += 4;
+        temp = (unsigned int*)realloc(v->data, v->capacity * sizeof(unsigned int));
+        if (temp == NULL) {
+            *status_code = realloc_failure;
             return;
         }
-        
-        for (unsigned int i = 0; i <= v->capacity; i++) {
-           temp[i] = v->data[i];
-        }
 
-        free(v->data);
         v->data = temp;
-        
-        *status_code = realloc_ok;
     }
-    
-    v->data[v->capacity] = num;
-    v->capacity++;
+
+    v->data[v->size] = num;
+    v->size++;
     *status_code = realloc_ok;
 }
 
+
 void print_vector(const vector* v) {
-    for (int i = 0; i < v->capacity; i++) {
+    for (int i = 0; i < v->size; i++) {
         printf("%d ", v->data[i]);
     }
     printf("\n");
@@ -157,10 +154,15 @@ int main( int argc, char *argv[]) {
 
         case 'e':
             
-            vector* table[8];
+            vector* table[10];
 
-            for( int column = 0; column < 8; column++){
+            for( int column = 0; column < 10; column++){
                 table[column] = (vector*)malloc(sizeof(vector));
+                
+                if (table[column] == NULL){
+                    return vector_created_failure;
+                } // Проверка
+
                 create_vector(table[column], 0, &status_code);
             }
 
@@ -168,14 +170,15 @@ int main( int argc, char *argv[]) {
                 
                 case degree_table_ok:
                     for (int row = 1; row <= number; row++){
-                        for (int column = 0; column < 8; column ++){
-                            printf("%2d^%d = %-10u\t", column + 2, row, table[column]->data[row-1]);
+                        for (int column = 0; column < 10; column ++){
+                            printf("%2d^%d = %-10u\t", column + 1, row, table[column]->data[row-1]);
                         }
                         printf("\n");
                     }
 
                     for (int column = 0; column < 8; column ++){
                         free_vector(table[column]);
+                        free(table[column]); // Почистить
                     }
 
                     break;
@@ -254,8 +257,13 @@ enum multiple_status multiple(unsigned int number, vector* multiple_nums){
 }
 
 int prime_number(unsigned int number){
-    if (number < 4)
+    if ((number == 2) || (number == 3) || (number == 1))
         return 0;
+    
+    if (number == 0){
+        return 1;
+    }
+
     for (int i = 3; i <= sqrt(number); i+=2){
         if ((number % i) == 0)
             return 1;
@@ -289,16 +297,16 @@ enum degree_table_status degree_table(unsigned int number, vector** table){
     enum vector_status_code status_code = vector_ok;
     unsigned int degree_result = 0;
 
-    if (number > 9)
+    if (number > 10)
         return degree_table_overflow;
 
     else if ((number == 0) || (number == 1))
         return degree_table_fail;
 
     else
-        for (int column = 0; column < 8; column ++){
+        for (int column = 0; column < 10; column ++){
             for (int row = 1; row <= number; row++){
-                degree_result = pow(column + 2, row);
+                degree_result = pow(column + 1, row);
                 push_back(table[column], degree_result, &status_code);
             }
         }
