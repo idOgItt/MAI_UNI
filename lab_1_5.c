@@ -114,8 +114,8 @@ enum status_code sum_expanation(double epsilon, double *result_expanation){
 enum status_code sum_two_expanation(double epsilon, double *result_two_expanation){
     double term = 1.0;
     double result = 0.0;
-    unsigned int  n = 1;
-    double koeff = 1.0;
+    unsigned int  n = 0;
+    double koeff = 0.5;
 
     while(fabs(term) > epsilon){
         result += term;
@@ -137,7 +137,7 @@ enum status_code sum_two_expanation(double epsilon, double *result_two_expanatio
 enum status_code sum_three_expanation(double epsilon, double *result_three_expanation){
     double term = 1.0;
     double result = 0.0;
-    double  n = 1;
+    double  n = 0;
     double koeff = 0.5;
 
     while (fabs(term) > epsilon){
@@ -151,20 +151,27 @@ enum status_code sum_three_expanation(double epsilon, double *result_three_expan
     return ok;
 }
 
-enum status_code sum_expanation_expanation(double epsilon, double *result_expanation_expanation){
-    double term = 1.0;
-    double result = 1.0;
-    double  n = 1;
-    double koeff = 1.0;
+enum status_code sum_expanation_expanation(double epsilon, double *result_expanation_expanation) {
+    double term = -0.125;
+    double result = 0.0;
+    double n = 1;
+    double koeff = 0.5;
+    double p, t;
 
-    while(fabs(term) > epsilon){
-        term *= -1 * pow(koeff, 2) / ((2 * n + 2) * (2 * n + 1));
+    while (fabs(term) > epsilon) {
         result += term;
         n++;
+        p = factorial_iterative(2 * n - 1);
+        t = factorial_iterative(2 * n);
+
+        if ((int)n % 2 == 0) {
+            term = factorial_iterative(p) / (factorial_iterative(t) * pow(koeff, 2 * n));
+        } else {
+            term = -factorial_iterative(p) / (factorial_iterative(t) * pow(koeff, 2 * n));
+        }
     }
 
     *result_expanation_expanation = result;
-
 
     return ok;
 }
