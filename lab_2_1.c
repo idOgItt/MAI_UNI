@@ -182,7 +182,7 @@ enum len_status_code len(char* string, int* length){
 
     int n = 0;
 
-    for(n; string[n] != '\0'; n++){
+    for(;*string != '\0'; n++){
         string++;
     }
 
@@ -292,11 +292,11 @@ enum reorder_string_status_code reorder_string(char* string, char** reordered_st
     (*reordered_string)[letter_start] = '\0';
     (*reordered_string)[other_start] = '\0';
 
-    if(strcatty(*reordered_string, *reordered_string + digit_start) == strcatty_memmory_allocation_fail){
+    if(strcatty(&reordered_string, *reordered_string + digit_start) == strcatty_memmory_allocation_fail){
         return reorder_string_concatination_fail;
     }
 
-    if(strcatty(*reordered_string, *reordered_string + letter_start) == strcatty_memmory_allocation_fail){
+    if(strcatty(&reordered_string, *reordered_string + letter_start) == strcatty_memmory_allocation_fail){
         return reorder_string_concatination_fail;
     }
 
