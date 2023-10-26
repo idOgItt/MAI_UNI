@@ -37,6 +37,14 @@ enum define_number_float_status_code define_number_float(double*** result, int b
         int numerator = (int)(number * denominator);
         int isFinite = 1;
 
+        int base_copy = base;
+        while (base_copy % 2 == 0) {
+            base_copy /= 2;
+        }
+        while (base_copy % 5 == 0) {
+            base_copy /= 5;
+        }
+
         int gcd = 1;
         int a = numerator;
         int b = denominator;
@@ -52,7 +60,7 @@ enum define_number_float_status_code define_number_float(double*** result, int b
         denominator /= gcd;
 
         // Проверяем, имеет ли дробь конечное представление в системе с заданным основанием.
-        if (fmod(denominator, base) != 0) {
+        if (fmod(denominator, base_copy) != 0) {
             isFinite = 0;
         }
 
@@ -64,9 +72,9 @@ enum define_number_float_status_code define_number_float(double*** result, int b
 }
 
 int main() {
-    int base = 7;
+    int base = 8;
     double real_1 = 0.0101001;
-    double real_2 = 0.0064;
+    double real_2 = 0.064;
     double real_3 = 0.026;
     double** result;
     int count = 3;

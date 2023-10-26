@@ -26,6 +26,10 @@ void swap(long double* a, long double* b) {
     long double temp = *a;
     *a = *b;
     *b = temp;
+
+    // a ^= b
+    // b ^= a
+    // a ^= b
 }
 
 void generate_permutations(long double* arr, int size, int index, long double** result, int* count) {
@@ -38,7 +42,7 @@ void generate_permutations(long double* arr, int size, int index, long double** 
         (*count)++;
     } else {
         for (int i = index; i < size; i++) {
-            swap(&arr[index], &arr[i]);
+            swap(arr + index, arr + i);
             generate_permutations(arr, size, index + 1, result, count);
             swap(&arr[index], &arr[i]); // Возвращаем элементы на место
         }
@@ -91,12 +95,10 @@ void print_vector(const vector* v) {
 
 void free_vector(vector* v) {
     free(v->data);
+    v->data = NULL;
     v->size = 0;
     v->capacity = 0;
-    v->data = NULL;
 }
-
-
 
 int main(int argc, char* argv[]) {
 

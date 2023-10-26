@@ -44,7 +44,7 @@ void push_back(vector* v, unsigned int num, enum vector_status_code* status_code
             *status_code = realloc_failure;
             return;
         }
-
+        free(v->data);
         v->data = temp;
     }
 
