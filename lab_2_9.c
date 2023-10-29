@@ -85,7 +85,7 @@ enum define_number_float_status_code define_number_float(double*** result, int b
 }
 
 int main() {
-    int base = 25;
+    int base = 8;
     double real_1 = 0.97;
     double real_2 = 0.5;
     double real_3 = 0.25;
