@@ -11,11 +11,11 @@ enum sum_string_status_code {
 enum sum_string_status_code sum_string(char** result, int base, int count, ...);
 
 int main() {
-    int base = 10;
+    int base = 2;
     int count = 3;
-    char* string_1 = "960";
-    char* string_2 = "960";
-    char* string_3 = "00";
+    char* string_1 = "000100";
+    char* string_2 = "010";
+    char* string_3 = "001";
     char* result = NULL;
 
     if (sum_string(&result, base, count, string_1, string_2, string_3) == sum_string_ok) {
@@ -32,12 +32,12 @@ enum sum_string_status_code sum_string(char** result, int base, int count, ...) 
     va_list strings;
     va_start(strings, count);
 
-    *result = (char*)malloc(1024);
+    /* *result = (char*)malloc(1024);
     if (*result == NULL) {
         va_end(strings);
         return sum_string_fail;
     }
-    (*result)[0] = '\0';
+    (*result)[0] = '\0'; */
 
     int carry = 0;
 
@@ -57,6 +57,12 @@ enum sum_string_status_code sum_string(char** result, int base, int count, ...) 
         if (length > max_length) {
             max_length = length;
         }
+    }
+
+    *result = (char*)malloc(max_length + 10);
+    if (*result == NULL) {
+        va_end(strings);
+        return sum_string_fail;
     }
 
     va_end(strings);
@@ -105,7 +111,18 @@ enum sum_string_status_code sum_string(char** result, int base, int count, ...) 
         (*result)[0] = digit_char;
     }
 
+    while ((*result)[0] == '0') {
+        memmove(*result, (*result) + 1, strlen(*result));
+    }
+
+
     free(string_array);
 
     return sum_string_ok;
 }
+
+/*9 9  len = 3
+18 20
+
+9 2 = 11 */
+// нолики
