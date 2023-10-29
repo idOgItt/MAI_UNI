@@ -25,22 +25,37 @@ enum polynomial_status_code polynomial_expansion(
         (*result)[i] = 0.0;
     }
 
-    double x = a;
+    double x = 1;
     double current_coefficient;
+
+    if ( a == 0){
+        for(int i = 0; i <= degree; i++){
+            (*result)[i] = va_arg(coefficients, double);
+        }
+        va_end(coefficients);
+        return polynomial_ok;
+    }
 
     for (int i = 0; i <= degree; i++) {
         current_coefficient = va_arg(coefficients, double);
+        double binomaial = 1.0;
+        double factorial = 1.0;
 
-
-        for (int j = i; j <= degree; j++) {
+        for (int j = 0; j <= i; j++){
+            factorial *=(j + 1);
+        }
+        
+        binomaial = i / factorial;
+        (*result)[i] += current_coefficient * binomaial;
+        /*for (int j = i; j <= degree; j++) {
             double binomial = 1.0;
 
             for (int k = 0; k < i; k++) {
-                binomial *= (x - a - k) / (k + 1);
+                binomial *= (x) / (k + 1);
             }
 
-            (*result)[j] += current_coefficient * binomial;
-        }
+            (*result)[j] += current_coefficient * binomial * (i);
+        } */
     }
 
     va_end(coefficients);
