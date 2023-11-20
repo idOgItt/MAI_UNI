@@ -1,34 +1,15 @@
 #include <stdio.h>
-#include <math.h>
-#include <stdarg.h>
-#include <stdbool.h>
 #include <stdlib.h>
-#include <string.h> // для length
-#include <time.h>
-
+#include <string.h>
+#include <stdbool.h>
+#include <math.h>
 
 enum handle_input_file_status_code {handle_input_file_ok, handle_input_file_fail};
-
-typedef enum {
-    unknow_state,
-    correct,
-    running_error,
-    file_error,
-    memory_error,
-    all_nums,
-} statements;
-
-typedef struct {
-    int *string_ns;
-    int *char_ns;
-    int cnt;
-    char *path;
-    statements stm;
-} Cell;
 
 typedef struct  Hash_Cash_Node{
     unsigned int key; // The key associated with the hash
     unsigned int hash;  // The calculated hash value
+    char* value;
     struct Hash_Cash_Node* next;
 } Hash_Cash_Node;
 
@@ -36,220 +17,6 @@ typedef struct {
     Hash_Cash_Node* entries;
     int size;
 } Hash_Cache;
-
-bool is_equal_str(char *str1, char *str2, int l) {
-    for (int i = 0; i < l; i++) {
-        if (str1[i] != str2[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-void move_char_left(char *str, int l) {
-    if (l == 1) {
-        return;
-    }
-    for (int i = 0; i < l - 1; i++) {
-        str[i] = str[i + 1];
-    }
-}
-
-void move_int_left(int *str, int l) {
-    if (l == 1) {
-        return;
-    }
-    for (int i = 0; i < l - 1; i++) {
-        str[i] = str[i + 1];
-    }
-}
-
-void free_Cell(Cell *c) {
-    if (c == NULL) {
-        return;
-    }
-    free(c->char_ns);
-    free(c->string_ns);
-    free(c);
-}
-
-void free_Cells(Cell **c, int n) {
-    for (int i = 0; i < n; i++) {
-        free_Cell(c[i]);
-    }
-    free(c);
-}
-
-statements find_pattern(char *pattern, char *buffer, int l, FILE *file, Cell **cell) {
-    if (l == 0) {
-        Cell *cel = (Cell *)malloc(sizeof(Cell));
-        cel->stm = all_nums;
-        *cell = cel;
-        return correct;
-    }
-
-    size_t bytes_read = 0;
-    int buffer_size = 2;
-
-    int *mas = (int *)malloc(sizeof(int) * l + 1);
-    if (mas == NULL) {
-        return memory_error;
-    }
-
-    int *str_i = (int *)malloc(sizeof(int) * buffer_size);
-    if (str_i == NULL) {
-        free(mas);
-        return memory_error;
-    }
-
-    int *ind_i = (int *)malloc(sizeof(int) * buffer_size);
-    if (ind_i == NULL) {
-        free(mas);
-        free(str_i);
-        return memory_error;
-    }
-
-    char c;
-
-    int string_n = 1, char_n = 1;
-    int fake2 = 0;
-    for (int i = 0; i < l; i++) {
-        if (pattern[i] == '\n') {
-            fake2++;
-        }
-    }
-
-    mas[0] = 1;
-    while (bytes_read != l && (c = fgetc(file)) != EOF) {
-        char_n++;
-        if (c == '\n') {
-            mas[bytes_read] = 1;
-            string_n++;
-            char_n = 1;
-        } else if (bytes_read > 0) {
-            mas[bytes_read] = mas[bytes_read - 1] + 1;
-        }
-        buffer[bytes_read] = c;
-        bytes_read++;
-    }
-
-    if (bytes_read != l) {
-        free(mas);
-        return file_error;
-    }
-    int cnt = 0;
-    if (is_equal_str(pattern, buffer, l)) {
-        ind_i[cnt] = 1;
-        str_i[cnt] = 1;
-        cnt++;
-    }
-    char_n++;
-
-    while ((c = fgetc(file)) != EOF) {
-        move_char_left(buffer, l);
-        move_int_left(mas, l);
-
-        if (c == '\n') {
-            string_n++;
-            mas[l - 1] = 1;
-        } else if (l - 2 > 0) {
-            mas[l - 1] = mas[l - 2] + 1;
-        } else {
-            mas[l - 1] = mas[l - 1] + 1;
-        }
-
-        buffer[l - 1] = c;
-        if (is_equal_str(pattern, buffer, l)) {
-            if (buffer_size < cnt + 1) {
-                buffer_size *= 2;
-                int *new_str_i = (int *)realloc(str_i, sizeof(int) * buffer_size);
-                if (new_str_i == NULL) {
-                    free(str_i);
-                    free(ind_i);
-                    return memory_error;
-                }
-                str_i = new_str_i;
-
-                int *new_ind_i = (int *)realloc(ind_i, sizeof(int) * buffer_size);
-                if (new_ind_i == NULL) {
-                    free(str_i);
-                    free(ind_i);
-                    return memory_error;
-                }
-                ind_i = new_ind_i;
-            }
-            ind_i[cnt] = l > 1 ? mas[0] - 1 : mas[0];
-            str_i[cnt] = string_n - fake2;
-            cnt++;
-        }
-        char_n++;
-    }
-
-    Cell *cel = (Cell *)malloc(sizeof(Cell));
-    cel->char_ns = ind_i;
-    cel->cnt = cnt;
-    cel->string_ns = str_i;
-    cel->stm = correct;
-    *cell = cel;
-
-    free(mas);
-    return correct;
-}
-
-statements find_all_patterns(Cell ***result, char *pattern, int num, ...) {
-    if (num <= 0) {
-        return running_error;
-    }
-
-    int l = strlen(pattern);
-    char *buffer = (char *)malloc(sizeof(char) * (l + 1));
-
-    if (buffer == NULL) {
-        return running_error;
-    }
-
-    va_list args;
-    va_start(args, num);
-
-    Cell **cells = (Cell **)malloc(sizeof(Cell *) * num);
-
-    if (cells == NULL) {
-        free(buffer);
-        return memory_error;
-    }
-
-    for (int i = 0; i < num; i++) {
-        char *path = va_arg(args, char *);
-        FILE *file = fopen(path, "r");
-        if (file == NULL) {
-            free_Cells(cells, num);
-            free(buffer);
-            return file_error;
-        }
-
-        Cell *local_res = NULL;
-
-        statements stm = find_pattern(pattern, buffer, l, file, &local_res);
-
-        if (stm != correct) {
-            free_Cells(cells, num);
-            free_Cell(local_res);
-            free(buffer);
-            return stm;
-        }
-
-        local_res->path = path;
-        cells[i] = local_res;
-
-        fclose(file);
-    }
-
-    va_end(args);
-    free(buffer);
-    *result = cells;
-
-    return correct;
-}
 
 // Function to check if the number is prime
 bool is_prime(int num) {
@@ -314,26 +81,22 @@ unsigned int calculate_hash(const char* string, int HASHSIZE){
 }
 
 // Function to get values from hash-table if not to fill in it
-unsigned int get_hash_from_cache(Hash_Cache* cache, const char* string_key, int HASHSIZE){
+const char* get_value_from_cache(Hash_Cache* cache, const char* string_key, int HASHSIZE) {
     unsigned int key = calculate_key(string_key);
-    unsigned int hash = key % HASHSIZE;
-    
+    unsigned int hash = calculate_hash(string_key, HASHSIZE);
+
     Hash_Cash_Node* node = &cache->entries[hash];
     while (node->next != NULL) {
         if (node->next->key == key) {
-            return node->next->hash;
+            return node->next->value;
         }
         node = node->next;
     }
 
     // The entry is not in the cache, calculate the hash and add a new node to the chain
-    node = (Hash_Cash_Node*)malloc(sizeof(Hash_Cash_Node));
-    node->next->key = key;
-    node->next->hash = hash;
-    node->next->next = NULL;
-
-    return node->next->hash;
+    return NULL;
 }
+
 
 // Function to free memory allocated for the hash cache
 void free_hash_cache(Hash_Cache* cache) {
@@ -341,34 +104,40 @@ void free_hash_cache(Hash_Cache* cache) {
         Hash_Cash_Node* current = cache->entries[i].next;
         while (current != NULL) {
             Hash_Cash_Node* next = current->next;
+            free(current->value);
             free(current);
             current = next;
         }
     }
+    free(cache->entries);
 }
 
 // Function to rehash the table
-void rehash_cache(Hash_Cache* old_cache, int new_size){
+void rehash_cache(Hash_Cache* old_cache, int new_size) {
     Hash_Cache new_cache;
     create_cache(&new_cache, new_size);
 
-    for (int i = 0; i < old_cache->size; i++){
+    for (int i = 0; i < old_cache->size; i++) {
         Hash_Cash_Node* node = &old_cache->entries[i];
-        while (node->next != NULL){
+        while (node->next != NULL) {
             unsigned int key = node->next->key;
             unsigned int hash = node->next->hash;
             unsigned int new_hash = key % new_size;
 
             Hash_Cash_Node* new_node = &new_cache.entries[new_hash];
-            while (new_node->next != NULL){
+            while (new_node->next != NULL) {
                 new_node = new_node->next;
             }
 
             new_node->next = (Hash_Cash_Node*)malloc(sizeof(Hash_Cash_Node));
+            /*if (new_node->next == NULL) {
+                perror("Error allocating memory");
+                return -1;
+            }*/
             new_node->next->key = key;
             new_node->next->hash = hash;
             new_node->next->next = NULL;
-            
+
             // Move to next node and delete old one
             Hash_Cash_Node* temp = node->next;
             node->next = node->next->next;
@@ -412,40 +181,84 @@ void check_and_resize(Hash_Cache* cache) {
     }
 }
 
-enum handle_input_file_status_code handle_input_file(char* input_file_path){
-    Cell **result;
-    int num_files = 1;
+// Function to insert a key and hash into the hash table
+void insert_into_cache(Hash_Cache* cache, unsigned int key, unsigned int hash, const char* value) {
+    Hash_Cash_Node* new_node = (Hash_Cash_Node*)malloc(sizeof(Hash_Cash_Node));
+    new_node->key = key;
+    new_node->hash = hash;
+    new_node->value = malloc(strlen(value) + 1);
+    strcpy(new_node->value, value);
+    new_node->value[strlen(value)] = '\0'; // NULL Terminate
+    new_node->next = cache->entries[hash].next;
+    cache->entries[hash].next = new_node;
+}
+
+// Function to handle input file
+enum handle_input_file_status_code handle_input_file(char* input_file_path) {
     FILE* input_file = fopen(input_file_path, "r");
+    
+    if (input_file == NULL) {
+        return handle_input_file_fail;
+    }
+
     FILE* output_file = fopen("lab_4_1.txt", "w");
-    char* start_string = "#define ";
-    char* pattern;
 
+    if (output_file == NULL) {
+        fclose(input_file);
+        return handle_input_file_fail;
+    }
 
-    statements stm = find_all_patterns(&result, pattern, num_files, input_file);
+    int HASHSIZE = 128;
 
-    if (stm == correct) {
-        for (int i = 0; i < num_files; i++) {
-            printf("Results for %s:\n", result[i]->path);
+    Hash_Cache cache;
+    create_cache(&cache, HASHSIZE);
 
-            for (int j = 0; j < result[i]->cnt; j++) {
-                printf("Pattern found at line %d, index %d\n", result[i]->string_ns[j], result[i]->char_ns[j]);
+    char line[256];
+    while (fgets(line, sizeof(line), input_file) != NULL) {
+        // Check if the line starts with "#define"
+        if (strncmp(line, "#define", 7) == 0) {
+            // Parse the line to extract <def_name> and <value>
+            char def_name[128], value[128];
+            if (sscanf(line, "#define %s %s\n", def_name, value) == 2) {
+                // Calculate hash and insert into the cache
+                printf("%s %s\n", def_name, value);
+                unsigned int key = calculate_key(def_name);
+                unsigned int hash = calculate_hash(def_name, HASHSIZE);
+                insert_into_cache(&cache, key, hash, value);
             }
+        } else {
+            // Replace occurrences of <def_name> with <value>
+            char* token = strtok(line, " ");
+            while (token != NULL) {
+                const char* value = get_value_from_cache(&cache, token, HASHSIZE);
+                if (value != NULL) {
+                    printf("%s\n",value);
+                    fprintf(output_file, "%s ", value);
+                } else {
+                    fprintf(output_file, "%s ", token);
+                }
 
-            printf("\n");
+                token = strtok(NULL, " ");
+            }
         }
     }
 
-    // Don't forget to free the memory allocated for the results
-    free_Cells(result, num_files);
-
+    fclose(input_file);
+    fclose(output_file);
+    free_hash_cache(&cache);
 
     return handle_input_file_ok;
 }
 
 
-int main(int argc, char* argv[]){
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        printf("Usage: %s <input_file_path>\n", argv[0]);
+        return 1;
+    }
+
     char* input_file_path = argv[1];
-    if (handle_input_file(input_file_path) == handle_input_file_ok){
+    if (handle_input_file(input_file_path) == handle_input_file_ok) {
         printf("File is changed successfully\n");
     }
 
