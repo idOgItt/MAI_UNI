@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdbool.h>
 
+enum execute_command_status_code {execute_command_ok, execute_command_invalid_syntax, execute_command_unknown_operation};
+
 enum save_array_status_code {save_array_ok, save_array_fail};
 
 enum load_array_status_code {load_array_ok, load_array_fail};
@@ -144,13 +146,14 @@ enum copy_elements_status_code copy_elements(array_variable* dest, const array_v
 
 // Comparison function ascending order
 int compare_asc(const void* a, const void* b){
-    return (a) - (b);
+    return (*(int*)a) - (*(int*)b);
 }
 
 // Comparison function for descending order
 int compare_desc(const void* a, const void* b) {
-    return b - a;
+    return (*(int*)b) - (*(int*)a);
 }
+
 
 // Function to sort array in ascending order
 void sort_array_asc(array_variable* array_var) {
@@ -173,7 +176,7 @@ void shuffle_array(array_variable* array_var) {
 }
 
 // Function to print array elements
-enum print_stats_status_code print_stats(const array_variable* array_var, int* result) {
+enum print_stats_status_code print_stats(const array_variable* array_var, double* result) {
     if (result == NULL) {
         return print_stats_fail;
     }
@@ -252,97 +255,151 @@ enum print_stats_status_code print_stats(const array_variable* array_var, int* r
 }
 
 // Function to execute a command
-void execute_command(interpreter_state* state, const char* command) {
+enum execute_command_status_code execute_command(interpreter_state* state, const char* command) {
     char operation[20];
     char array_name;
     int count, lb, rb;
     char target_array;
     int start, end;
     
-    sscanf(command, "%s %c", operation, &array_name);
+    if (sscanf(command, "%s %c", operation, &array_name) != 2) {
+        return execute_command_invalid_syntax;
+    }
 
     if (strcmp(operation, "Load") == 0) {
         char file_name[50];
-        sscanf(command, "Load %c, %s;", &array_name, file_name);
-        load_array(&state->variables[array_name - 'A'].array, file_name);
+        if (sscanf(command, "Load %c, %s;", &array_name, file_name) == 2) {
+            if (load_array(&state->variables[array_name - 'A'], file_name) == load_array_fail) {
+                return execute_command_invalid_syntax;
+            }
+        } else {
+            return execute_command_invalid_syntax;
+        }
     } else if (strcmp(operation, "Save") == 0) {
         char file_name[50];
-        sscanf(command, "Save %c, %s;", &array_name, file_name);
-        save_array(&state->variables[array_name - 'A'].array, file_name);
+        if (sscanf(command, "Save %c, %s;", &array_name, file_name) == 2) {
+            if (save_array(&state->variables[array_name - 'A'], file_name) == save_array_fail) {
+                return execute_command_invalid_syntax;
+            }
+        } else {
+            return execute_command_invalid_syntax;
+        }
     } else if (strcmp(operation, "Rand") == 0) {
-        sscanf(command, "Rand %c, %d, %d, %d;", &array_name, &count, &lb, &rb);
-        fill_random(&state->variables[array_name - 'A'].array, count, lb, rb);
+        if (sscanf(command, "Rand %c, %d, %d, %d;", &array_name, &count, &lb, &rb) == 4) {
+            if (fill_random(&state->variables[array_name - 'A'], count, lb, rb) == fill_random_invalid_parameter) {
+                return execute_command_invalid_syntax;
+            }
+        } else {
+            return execute_command_invalid_syntax;
+        }
     } else if (strcmp(operation, "Concat") == 0) {
         char second_array_name;
-        sscanf(command, "Concat %c, %c;", &array_name, &second_array_name);
-        concat_arrays(&state->variables[array_name - 'A'].array,
-                      &state->variables[array_name - 'A'].array,
-                      &state->variables[second_array_name - 'A'].array);
+        if (sscanf(command, "Concat %c, %c;", &array_name, &second_array_name) == 2) {
+            if (concat_arrays(&state->variables[array_name - 'A'],
+                              &state->variables[array_name - 'A'],
+                              &state->variables[second_array_name - 'A']) == concat_arrays_invalid_parameter) {
+                return execute_command_invalid_syntax;
+            }
+        } else {
+            return execute_command_invalid_syntax;
+        }
     } else if (strcmp(operation, "Free") == 0) {
-        sscanf(command, "Free %c;", &array_name);
-        free_array(&state->variables[array_name - 'A'].array);
+        if (sscanf(command, "Free %c;", &array_name) == 1) {
+            free_array(&state->variables[array_name - 'A']);
+        } else {
+            return execute_command_invalid_syntax;
+        }
     } else if (strcmp(operation, "Remove") == 0) {
-        sscanf(command, "Remove %c, %d, %d;", &array_name, &start, &count);
-        remove_elements(&state->variables[array_name - 'A'].array, start, count);
+        if (sscanf(command, "Remove %c, %d, %d;", &array_name, &start, &count) == 3) {
+            if (remove_elements(&state->variables[array_name - 'A'], start, count) == remove_elements_invalid_parameter) {
+                return execute_command_invalid_syntax;
+            }
+        } else {
+            return execute_command_invalid_syntax;
+        }
     } else if (strcmp(operation, "Copy") == 0) {
         char dest_array_name;
-        sscanf(command, "Copy %c, %d, %d, %c;", &array_name, &start, &end, &dest_array_name);
-        // Call the copy_elements function
-        copy_elements(&state->variables[dest_array_name - 'A'].array,
-                      &state->variables[array_name - 'A'].array, start, end);
+        if (sscanf(command, "Copy %c, %d, %d, %c;", &array_name, &start, &end, &dest_array_name) == 4) {
+            if (copy_elements(&state->variables[dest_array_name - 'A'],
+                              &state->variables[array_name - 'A'], start, end) == copy_elements_invalid_parameter) {
+                return execute_command_invalid_syntax;
+            }
+        } else {
+            return execute_command_invalid_syntax;
+        }
     } else if (strcmp(operation, "Sort") == 0) {
-        sscanf(command, "Sort %c%c;", &array_name, &target_array);
-        // Call the sort_array_asc or sort_array_desc function based on the operation
-        if (target_array == '+') {
-            sort_array_asc(&state->variables[array_name - 'A'].array);
-        } else if (target_array == '-') {
-            sort_array_desc(&state->variables[array_name - 'A'].array);
+        if (sscanf(command, "Sort %c%c;", &array_name, &target_array) == 2) {
+            if (target_array == '+') {
+                sort_array_asc(&state->variables[array_name - 'A']);
+            } else if (target_array == '-') {
+                sort_array_desc(&state->variables[array_name - 'A']);
+            } else {
+                return execute_command_invalid_syntax;
+            }
+        } else {
+            return execute_command_invalid_syntax;
         }
     } else if (strcmp(operation, "Shuffle") == 0) {
-        sscanf(command, "Shuffle %c;", &array_name);
-        // Call the shuffle_array function
-        shuffle_array(&state->variables[array_name - 'A'].array);
+        if (sscanf(command, "Shuffle %c;", &array_name) == 1) {
+            shuffle_array(&state->variables[array_name - 'A']);
+        } else {
+            return execute_command_invalid_syntax;
+        }
     } else if (strcmp(operation, "Stats") == 0) {
-        sscanf(command, "Stats %c;", &array_name);
-        // Call the print_stats function
-        int result[9];
-        print_stats(&state->variables[array_name - 'A'].array, result);
-        // Display the statistics
-        printf("Size: %d\n", result[0]);
-        printf("Max Value: %d\n", result[1]);
-        printf("Max Index: %d\n", result[2]);
-        printf("Min Value: %d\n", result[3]);
-        printf("Min Index: %d\n", result[4]);
-        printf("Mode: %d\n", result[5]);
-        printf("Max Occurrences: %d\n", result[6]);
-        printf("Mean: %f\n", result[7]);
-        printf("Max Deviation: %d\n", result[8]);
+        if (sscanf(command, "Stats %c;", &array_name) == 1) {
+            double result[9];
+            if (print_stats(&state->variables[array_name - 'A'], result) == print_stats_fail) {
+                return execute_command_invalid_syntax;
+            }
+            // Display the statistics
+            printf("Size: %f\n", result[0]);
+            printf("Max Value: %f\n", result[1]);
+            printf("Max Index: %f\n", result[2]);
+            printf("Min Value: %f\n", result[3]);
+            printf("Min Index: %f\n", result[4]);
+            printf("Mode: %f\n", result[5]);
+            printf("Max Occurrences: %f\n", result[6]);
+            printf("Mean: %f\n", result[7]);
+            printf("Max Deviation: %f\n", result[8]);
+        } else {
+            return execute_command_invalid_syntax;
+        }
     } else if (strcmp(operation, "Print") == 0) {
         char print_type[5];
-        sscanf(command, "Print %c, %s", &array_name, print_type);
-        if (strcmp(print_type, "all;") == 0) {
-            // Print all elements
-            for (int i = 0; i < state->variables[array_name - 'A'].array.size; ++i) {
-                printf("%d ", state->variables[array_name - 'A'].array.data[i]);
+        if (sscanf(command, "Print %c, %s", &array_name, print_type) == 2) {
+            if (strcmp(print_type, "all;") == 0) {
+                // Print all elements
+                for (int i = 0; i < state->variables[array_name - 'A'].array.size; ++i) {
+                    printf("%d ", state->variables[array_name - 'A'].array.data[i]);
+                }
+                printf("\n");
+            } else {
+                if (sscanf(command, "Print %c, %d, %d;", &array_name, &start, &end) == 3) {
+                    // Print elements from start to end
+                    for (int i = start; i <= end && i < state->variables[array_name - 'A'].array.size; ++i) {
+                        printf("%d ", state->variables[array_name - 'A'].array.data[i]);
+                    }
+                    printf("\n");
+                } else {
+                    return execute_command_invalid_syntax;
+                }
             }
-            printf("\n");
         } else {
-            int start, end;
-            sscanf(command, "Print %c, %d, %d;", &array_name, &start, &end);
-            // Print elements from start to end
-            for (int i = start; i <= end && i < state->variables[array_name - 'A'].array.size; ++i) {
-                printf("%d ", state->variables[array_name - 'A'].array.data[i]);
-            }
-            printf("\n");
+            return execute_command_invalid_syntax;
         }
+    } else {
+        return execute_command_unknown_operation;
     }
+
+    return execute_command_ok;
 }
+
 
 
 int main(int argc, char* argv[]) {
     interpreter_state state;
     int MAX_ARRAY_SIZE = 500;
-    char* instructions_file = argv[2];
+    char* instructions_file = argv[1];
 
     // Initialize array variables
     for (int i = 0; i < 26; ++i) {
