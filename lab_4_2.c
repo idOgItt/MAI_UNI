@@ -51,7 +51,8 @@ enum load_array_status_code load_array(array_variable* array_var, const char* in
             return load_array_fail;
         }
 
-        array_var->array.data[count++] = value;
+        array_var->array.data[count] = value;
+        count++;
     }
 
     array_var->array.size = count;
