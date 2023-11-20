@@ -23,7 +23,7 @@ typedef struct {
 } Student;
 
 // Struct to hold comparison functions
-typedef (*compare_functions) (const void* a, const void* b);
+typedef int (*compare_functions) (const void* a, const void* b);
 
 // Comparison function for sorting based on group
 int compare_group(const void* a, const void* b){
@@ -81,7 +81,7 @@ enum student_search_status_code student_search(const Student** students, const i
     case 'i':
         unsigned id_to_find = 0;
 
-        for(argument; *argument != '\0'; argument++){
+        for(; *argument != '\0'; argument++){
             unsigned digit = *argument;
             id_to_find = id_to_find * 10 + digit;
         }
@@ -208,7 +208,9 @@ enum reading_students_status_code reading_students(FILE* input_file, Student** s
             strcpy(student.name, name);
             strcpy(student.surname, surname);
             strcpy(student.group, group);
-            strcpy(student.scores, scores);
+            for (int i = 0; i < 5; i++){
+                student.scores[i] = scores[i];
+            }
             // TODO DATA VALIDATION
 
             // Adding the student to the vector
@@ -273,7 +275,7 @@ enum students_sort_status_code students_sort(const int num_students, Student** s
 
     for(int i = 0; i < num_students; i++){
         fprintf(output_file, "ID: %u, Name: %s, Surname: %s, Group: %s, Scores: %hhu\n", (*students)[i].id,
-                (*students)[i].name, (*students)[i].surname, (*students)[i].group, (*students)[i].scores);
+                (*students)[i].name, (*students)[i].surname, (*students)[i].group, (*students)[i].scores[0]);
     }
 
     fclose(output_file);
@@ -312,8 +314,8 @@ enum stdout_students_search_status_code stdout_students_search(const Student** s
         }
 
         // Write into file
-        for (int i = 0; i < founded_students; i++){
-            double average_score = average_score_function((*result)[i]);
+        for (int i = 0; i < *founded_students; i++){
+            average_score = average_score_function((*result)[i]);
             fprintf(output_file, "ID: %u, Name: %s, Surname: %s, Group: %s Average score: %.2f\n", (*result)[i].id,
                 (*result)[i].name, (*result)[i].surname, (*result)[i].group, average_score);
         }
@@ -367,7 +369,7 @@ enum stdout_students_higher_scores_status_code stdout_students_higher_scores(con
     return stdout_students_higher_scores_ok;
 }
 
-int main (int argc, char argv[]){
+int main (int argc, char* argv[]){
 
     // Handle the input_string
     if (argc != 2)
@@ -405,7 +407,8 @@ int main (int argc, char argv[]){
         scanf("%d", &choice);
         Student* result_found;
         Student* result_average_scores;
-        char* field;
+        char* field_search;
+        char* field_sort;
         char* output_file_path = NULL;
 
         switch (choice)
@@ -415,15 +418,15 @@ int main (int argc, char argv[]){
             printf("Where to put the result?\n");
             int output_choice = 0;
 
-            while (output_choice != 1 || output_choice != 2){
+            while (output_choice != 1 && output_choice != 2){
                 printf("The choices are: <1> File <2> Command line\n");
                 scanf("%d", &output_choice);
             }
 
             printf("For what field shoud the data be search : <id> <surname> <name> <group> ?");
-            while (field != "id" || field != "surname" || field != "name" || field != "group"){
+            while (strcmp(field_search, "id") != 0 && strcmp(field_search, "surname") != 0 && strcmp(field_search, "name") != 0 && strcmp(field_search, "group") != 0){
                 printf("The choices are: <id> <surname> <name> <group> \n");
-                scanf("%s", field);
+                scanf("%s", field_search);
             }
 
             char* argument = NULL;
@@ -439,7 +442,7 @@ int main (int argc, char argv[]){
                 printf("Enter the output_file_path: \n");
                 scanf("%s", output_file_path);
 
-                if (stdout_students_search(&students, num_students, &result_found, field, argument, output_file_path, &founded_students_search) == stdout_students_search_ok){
+                if (stdout_students_search(&students, num_students, &result_found, field_search, argument, output_file_path, &founded_students_search) == stdout_students_search_ok){
                     printf("The file has been changed\n");
                 } else {
                     printf("Something went wrong\n");
@@ -449,10 +452,10 @@ int main (int argc, char argv[]){
             // To print into command line
             if (output_choice == 2){
 
-                if(student_search(&students, num_students, &result_found, field, argument, &founded_students_search) == student_search_ok){
+                if(student_search(&students, num_students, &result_found, field_search, argument, &founded_students_search) == student_search_ok){
                     for (int i = 0; i < founded_students_search; i++){
-                        printf("ID: %u, Name: %s, Surname: %s, Group: %s Scores: %s\n", result_found[i].id,
-                                result_found[i].name, result_found[i].surname, result_found[i].group, result_found[i].scores);
+                        printf("ID: %u, Name: %s, Surname: %s, Group: %s Scores: %hhu\n", result_found[i].id,
+                                result_found[i].name, result_found[i].surname, result_found[i].group, result_found[i].scores[0]);
                     }
                 } else {
                     printf("Something went wrong\n");
@@ -469,19 +472,19 @@ int main (int argc, char argv[]){
             output_file_path = NULL;
 
             printf("What field should be sorted by ?\n");
-            scanf("%s", field);
+            scanf("%s", field_sort);
 
-            while (field != "id" || field != "surname" || field != "name" || field != "group"){
+            while (strcmp(field_sort, "id") != 0 && strcmp(field_sort, "surname") != 0 && strcmp(field_sort, "name") != 0 && strcmp(field_sort, "group") != 0){
                 printf("The choices are: <id> <surname> <name> <group> \n");
-                scanf("%s", field);
+                scanf("%s", field_sort);
             }
             
             printf("By <a> increase or <b> decrease?\n");
-            scanf("%c", flag_sort);
+            scanf("%c", &flag_sort);
 
-            while (flag_sort != 'a' || flag_sort != 'b'){
+            while (flag_sort != 'a' && flag_sort != 'b'){
                 printf("The choices are: <a> increase <b> decrease\n");
-                scanf("%c", flag_sort);
+                scanf("%c", &flag_sort);
             }
 
             printf("Enter the output_file_path: \n");
@@ -491,7 +494,7 @@ int main (int argc, char argv[]){
 
             // Defining compar according to choices
             if (flag_sort == 'a'){
-                switch (field[0])
+                switch (field_sort[0])
                 {
                 case 'i':
                     compar = compare_id;
@@ -514,7 +517,7 @@ int main (int argc, char argv[]){
                     break;
                 }
             } else{
-                switch (field[0])
+                switch (field_sort[0])
                 {
                 case 'i':
                     compar = compare_id_desc;
