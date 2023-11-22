@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 enum handle_file_status_code { handle_file_ok, handle_file_fail, handle_file_no_name, handle_file_no_operation };
 
@@ -14,7 +15,7 @@ typedef struct {
 
 // Structure to represent an instruction
 typedef struct {
-    MemoryCell node;
+    MemoryCell* node;
     char* operation;
 } Instruction;
 
@@ -27,6 +28,20 @@ typedef struct {
 // Comparison function for qsort
 int compare_memory_cells(const void* a, const void* b) {
     return strcmp(((MemoryCell*)a)->variable, ((MemoryCell*)b)->variable);
+}
+
+int is_operator(char c) {
+    switch (c) {
+        default:
+            return 1;
+        case '+':
+        case '-':
+        case '*':
+        case '/':
+        case '%':
+        case '^':
+            return 0;
+    }
 }
 
 // Function to find a variable in the memory
@@ -44,8 +59,42 @@ void sort_memory_cells(Interpreter_state* state) {
     qsort(state->memory, state->memory_size, sizeof(MemoryCell), compare_memory_cells);
 }
 
+int isdigit_string(const char* string){
+    int digit;
+    int num;
+    while (*string){
+        if (isdigit(*string)){
+            digit = *string - '0';
+            num = num * 10 + digit;
+        } else {
+            return -1;
+        }
+        string++;
+    }
+    return num;
+}
+
 // Function to initialize variables
-int initialize_variable(Interpreter_state* state, const char* variable_name, int value) {
+int initialize_variable(Interpreter_state* state, const char* variable_name, const char* value_name) {
+
+    int value = 0;
+
+    if (isdigit_string(value_name) != -1){
+
+        value = isdigit_string(value_name);
+
+    } else {
+        int index_value = find_variable(state, value_name);
+        
+        if (index_value != -1){
+        value = state->memory[index_value].data;
+        } else {
+            perror("There is no such a variable");
+            return -1;
+        }
+
+    }
+
     // Check if the variable already exists
     int index = find_variable(state, variable_name);
 
@@ -77,30 +126,48 @@ int initialize_variable(Interpreter_state* state, const char* variable_name, int
 }
 
 // Function to perform operations
-enum perform_operation_status_code perform_operation(Interpreter_state* state, const char* variable_name, const char* operation, int operand) {
+enum perform_operation_status_code perform_operation(Interpreter_state* state, const char* variable_name, const char operation, const char* operand_name, int* result) {
     // Search for the variable
     int index = find_variable(state, variable_name);
+    
+    int operand = 0;
+
+    if (isdigit_string(operand_name) != -1){
+
+        operand = isdigit_string(operand_name);
+
+    } else {
+        int operand_value = find_variable(state, operand_name);
+        
+        if (operand_value != -1){
+        operand = state->memory[operand_value].data;
+        } else {
+            perror("There is no such a variable");
+            return perform_operation_invalid;
+        }
+
+    }
 
     if (index != -1) {
         // Variable found, perform the operation
-        if (strcmp(operation, "+") == 0) {
-            state->memory[index].data += operand;
-        } else if (strcmp(operation, "-") == 0) {
-            state->memory[index].data -= operand;
-        } else if (strcmp(operation, "*") == 0) {
-            state->memory[index].data *= operand;
-        } else if (strcmp(operation, "/") == 0) {
+        if (operation == '+') {
+            *result = state->memory[index].data + operand;
+        } else if (operation == '-') {
+            *result = state->memory[index].data - operand;
+        } else if (operation == '*') {
+            *result = state->memory[index].data * operand;
+        } else if (operation == '/') {
             // Non Zero
             if (operand != 0) {
-                state->memory[index].data /= operand;
+                *result = state->memory[index].data / operand;
             } else {
                 fprintf(stderr, "Error: Division by zero\n");
                 return perform_operation_zero;
             }
-        } else if (strcmp(operation, "%") == 0) {
+        } else if (operation == '%') {
             // Non Zero
             if (operand != 0) {
-                state->memory[index].data %= operand;
+                *result = state->memory[index].data % operand;
             } else {
                 fprintf(stderr, "Error: Division by zero\n");
                 return perform_operation_zero;
@@ -127,42 +194,70 @@ void free_interpreter_state(Interpreter_state* state) {
     free(state->memory);
 }
 
+void free_instructions(Instruction* instructions, int instruction_count) {
+    for (int i = 0; i < instruction_count; ++i) {
+        free(instructions[i].node);
+        free(instructions[i].operation);
+    }
+
+    free(instructions);
+}
+
+
+
 // Function to execute instructions
 void execute_instructions(Interpreter_state* state, Instruction* instructions, int instruction_count) {
     for (int i = 0; i < instruction_count; ++i) {
-        // Operations
-        if (strcmp(instructions[i].operation, "=") == 0) {
-            initialize_variable(state, instructions[i].node.variable, instructions[i].node.data);
-        }
-
-        if (strcmp(instructions[i].operation, "+") == 0 ||
-            strcmp(instructions[i].operation, "-") == 0 ||
-            strcmp(instructions[i].operation, "*") == 0 ||
-            strcmp(instructions[i].operation, "/") == 0 ||
-            strcmp(instructions[i].operation, "%") == 0) {
-
-            // Perform operation and initialize variable
-            int result = perform_operation(state, instructions[i].node.variable,
-                                           instructions[i].operation, instructions[i].node.data);
-        }
 
         // Print
         if (strcmp(instructions[i].operation, "print") == 0) {
-            if (instructions[i].node.variable == NULL) {
+            if (instructions[i].node[0].variable == NULL) {
                 // Print all variables
                 for (int j = 0; j < state->memory_size; j++) {
                     printf("%s = %d\n", state->memory[j].variable, state->memory[j].data);
                 }
             } else {
                 // Print the specified variable
-                int index = find_variable(state, instructions[i].node.variable);
+                int index = find_variable(state, instructions[i].node[0].variable);
 
                 if (index != -1) {
-                    printf("%s = %d\n", instructions[i].node.variable, state->memory[index].data);
+                    printf("%s = %d\n", instructions[i].node[0].variable, state->memory[index].data);
                 } else {
-                    fprintf(stderr, "Error: Variable '%s' not found\n", instructions[i].node.variable);
+                    fprintf(stderr, "Error: Variable '%s' not found\n", instructions[i].node[i].variable);
                 }
             }
+        }
+
+        // Operations
+        if (is_operator(instructions[i].operation[0])) {
+
+            // Perform operation and initialize variable
+            int result = 0;
+            if (perform_operation(state, instructions[i].node[1].variable,
+                                  instructions[i].operation[1], instructions[i].node[2].variable, &result) == perform_operation_ok);
+            
+            char* result_str;
+            int char_num = 0;
+
+            while(result != 0){
+                result /= 10;
+                char_num++;
+            }
+
+            result_str = malloc(sizeof(char) * char_num);
+            // TODO check
+
+            sprintf(result_str, "%d", result);
+            
+            if (instructions[i].operation[0] == '=') {
+                initialize_variable(state, instructions[i].node[0].variable, result_str);
+            }
+
+            free(result_str);
+        }
+
+        if (instructions[i].operation[0] == '=') {
+            initialize_variable(state, instructions[i].node[0].variable, instructions[i].node[1].variable);
         }
     }
 }
@@ -179,66 +274,67 @@ enum handle_file_status_code handle_file(const char* input_file_path, Instructio
     int count = 0;
 
     while (fgets(buffer, sizeof(buffer), input_file)) {
-        Instruction* new_instruction = (Instruction*)malloc(sizeof(Instruction));
+        Instruction new_instruction;
+        new_instruction.node = malloc(3 * sizeof(MemoryCell));
+        new_instruction.operation = malloc(sizeof(char) * 2);
 
-        if (new_instruction == NULL) {
-            return handle_file_fail;
-        }
+        // Using to parse the line
+        char current_char;
+        char* variable;
+        int operators_num = 0;
+        int variable_num = 0;
+        int i = 0;
 
-        char* token = strtok(buffer, "= \t\n");
-        printf("%s\n", token);
+        variable = (char*)malloc(sizeof(char) * 256);
 
-        if (token == NULL) {
-            // NULL string
-            free(new_instruction);
-            continue;
-        }
+        for (int cc = 0; cc < strlen(buffer); cc++) {
+            current_char = buffer[cc];
 
-        new_instruction->node.variable = strdup(token);
+            if (current_char == ' ') {
+                if (strcmp("print", variable) == 0) {
+                    new_instruction.operation = strdup(variable);
+                    // Skip "print" and read the variable until the semicolon
+                    sscanf(buffer + cc, "print %s;", new_instruction.node[variable_num].variable);
+                    break;
+                }
+            }
 
-        if (new_instruction->node.variable == NULL) {
-            return handle_file_no_name;
-        }
+            if (current_char == ';') {
+                if (strcmp("print", variable) == 0) {
+                    new_instruction.node[variable_num].variable = strdup(variable);
+                    break;
+                }
+            }
 
-        // Operation
-        token = strtok(NULL, "= \t\n");
-        printf("%s\n", token);
+            if (is_operator(current_char)) {
+                new_instruction.operation[operators_num] = current_char;
+                operators_num++;
+                new_instruction.node[variable_num].variable = strdup(variable);
+                variable_num++;
 
-        if (token == NULL) {
-            fprintf(stderr, "Error: Missing operation in instruction\n");
-            free(new_instruction->node.variable);
-            free(new_instruction);
-            continue;
-        }
+                free(variable);
+                variable = malloc(sizeof(char) * 256);
+                i = 0;
 
-        new_instruction->operation = strdup(token);
-
-        if (new_instruction->operation == NULL) {
-            return handle_file_no_operation;
-        }
-
-        // Value
-        token = strtok(NULL, "= \t;\n");
-        printf("%s\n", token);
-
-        if (token != NULL) {
-            new_instruction->node.data = atoi(token);
-        } else {
-            new_instruction->node.data = 0;
+            } else {
+                variable[i] = current_char;
+                i++;
+            }
+            variable = realloc(variable, (i + 1) * sizeof(char));
         }
 
         count++;
 
         // Resize the instructions array
-        (*instructions) = (Instruction*)realloc(*instructions, count * sizeof(Instruction));
+        (*instructions) = (Instruction*)realloc(*instructions, (count) * sizeof(Instruction));
 
         if (*instructions == NULL) {
+            free(variable);
+            fclose(input_file);
             return handle_file_fail;
         }
 
-        (*instructions)[count - 1] = *new_instruction;
-
-        free(new_instruction);
+        (*instructions)[count - 1] = new_instruction;
     }
 
     fclose(input_file);
@@ -247,6 +343,8 @@ enum handle_file_status_code handle_file(const char* input_file_path, Instructio
 
     return handle_file_ok;
 }
+
+
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -268,7 +366,7 @@ int main(int argc, char* argv[]) {
         execute_instructions(&state, instructions, instruction_num);
         // Free memory
         free_interpreter_state(&state);
-        free(instructions);
+        free_instructions(instructions, instruction_num);
         break;
     case handle_file_fail:
         fprintf(stderr, "Error: Failed to handle the file\n");
