@@ -1,343 +1,433 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+/*
+в каждой строке 1 выражение
++ - * / % ^ ( )
+вывести исходное, обратную польскую, значение
+собственную реализацию стека через односвязный список
+*/
+
 #include <ctype.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
-enum handle_file_status_code { handle_file_ok, handle_file_fail, handle_file_no_name, handle_file_no_operation };
+typedef enum {
+    SUCCESS = 0,
+    INCORRECT_INPUT,
+    OVERFLOW_ERROR,
+    MALLOC_ERROR,
+    FILE_OPENING_ERROR,
+    FILE_READING_ERROR,
+    OPEN_BRACE_MISSING,
+    CLOSE_BRACE_MISSING,
+    UNKNOWN_SYMBOL,
+    DIVISION_BY_ZERO,
+    UNKNOWN_ERROR,
+} ErrorCode;
 
-enum perform_operation_status_code { perform_operation_zero, perform_operation_invalid, perform_operation_ok };
+static const char* errorMessages[] = {
+    "Всё хорошо, можно идти пить чай ☕",
+    "Некорректный ввод, попробуйте ещё раз 🤨",
+    "Произошло переполнение, ой 🤯",
+    "Проблемы с выделением памяти, грустно 😐",
+    "Не удалось открыть файл, грустно 😥",
+    "Файл прочитан не полностью, грустно 😿",
+    "Месье, у Вас '(' пропала из выражения 🧐",
+    "Месье, у Вас ')' пропала из выражения 🧐",
+    "Месье, найден неопознанный символ в выражении 🧐",
+    "Месье, делить на ноль запрещенно 🧐",
+    "Неизвестная ошибка, что-то пошло не так 🫢"
+};
 
-typedef struct {
-    char* variable;
-    int data;
-} MemoryCell;
+#define BUFFER_SIZE 100
 
-typedef struct {
-    MemoryCell* node;
-    char* operation;
-} Instruction;
+typedef struct Node {
+    char data;
+    struct Node* next;
+} Node;
 
-typedef struct {
-    MemoryCell* memory;
-    int memory_size;
-} Interpreter_state;
+typedef struct Stack {
+    Node* top;
+} Stack;
 
-int compare_memory_cells(const void* a, const void* b) {
-    return (((MemoryCell*)a)->data - ((MemoryCell*)b)->data);
+Node* createNode(const char data) {
+    Node* newNode = (Node*)malloc(sizeof(Node));
+    newNode->data = data;
+    newNode->next = NULL;
+    return newNode;
 }
 
-int is_operator(char c) {
-    switch (c) {
+void initStack(Stack* stack) {
+    stack->top = NULL;
+}
+
+int isEmpty(Stack* stack) {
+    return (stack->top == NULL);
+}
+
+void push(Stack* stack, const char data) {
+    Node* newNode = createNode(data);
+    newNode->next = stack->top;
+    stack->top = newNode;
+}
+
+char pop(Stack* stack) {
+    if (isEmpty(stack)) {
+        printf("Стек пуст 🪣\n");
+        return -1;
+    }
+    int poppedData = stack->top->data;
+    Node* temp = stack->top;
+    stack->top = stack->top->next;
+    free(temp);
+    return poppedData;
+}
+
+char peek(Stack* stack) {
+    if (isEmpty(stack)) {
+        printf("Стек пуст 🪣\n");
+        return -1;
+    }
+    return stack->top->data;
+}
+
+void deleteStack(Stack* stack) {
+    while (stack->top != NULL) {
+        Node* temp = stack->top;
+        stack->top = stack->top->next;
+        free(temp);
+    }
+}
+
+int isoperator(const char chr) {
+    switch (chr) {
         default:
-            return 1;
+            return 0;
         case '+':
         case '-':
         case '*':
         case '/':
         case '%':
         case '^':
-        case '=':
-            return 0;
+            return 1;
     }
 }
 
-int find_variable(Interpreter_state* state, const char* variable_name) {
-    for (int i = 0; i < state->memory_size; ++i) {
-        if (strcmp(state->memory[i].variable, variable_name) == 0) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-void sort_memory_cells(Interpreter_state* state) {
-    qsort(state->memory, state->memory_size, sizeof(MemoryCell), compare_memory_cells);
-}
-
-int isdigit_string(const char* string) {
-    int digit;
-    int num = 0;
-    while (*string) {
-        if (isdigit(*string)) {
-            digit = *string - '0';
-            num = num * 10 + digit;
-        } else {
+int opPr(const char chr) {
+    switch(chr) {
+        default:
             return -1;
-        }
-        string++;
+        case '+':
+        case '-':
+            return 1;
+        case '*':
+        case '/':
+        case '%':
+            return 2;
+        case '^':
+            return 3;
     }
-    return num;
 }
 
-int initialize_variable(Interpreter_state* state, const char* variable_name, const char* value_name) {
-    int value = 0;
-
-    if (isdigit_string(value_name) != -1) {
-        value = isdigit_string(value_name);
-    } else {
-        int index_value = find_variable(state, value_name);
-
-        if (index_value != -1) {
-            value = state->memory[index_value].data;
-        } else {
-            perror("There is no such a variable");
-            return -1;
-        }
+ErrorCode checkOutputOverflow(const int i, char output[BUFFER_SIZE]) {
+    if (i >= BUFFER_SIZE-1) {
+        output[BUFFER_SIZE-1] = '\0';
+        return OVERFLOW_ERROR;
     }
-
-    int index = find_variable(state, variable_name);
-
-    if (index != -1) {
-        state->memory[index].data = value;
-    } else {
-        state->memory_size++;
-        state->memory = (MemoryCell*)realloc(state->memory, state->memory_size * sizeof(MemoryCell));
-
-        if (state->memory == NULL) {
-            perror("Memory allocation error");
-            return -1;
-        }
-
-        state->memory[state->memory_size - 1].variable = strdup(variable_name);
-
-        if (state->memory[state->memory_size - 1].variable == NULL) {
-            perror("Memory allocation error");
-            return -1;
-        }
-
-        state->memory[state->memory_size - 1].data = value;
-    }
-
-    return 0;
+    return SUCCESS;
 }
 
-enum perform_operation_status_code perform_operation(Interpreter_state* state, const char* variable_name, const char operation, const char* operand_name, int* result) {
-    int index = find_variable(state, variable_name);
+ErrorCode shuntingYard(const char input[], int inpLen, char output[BUFFER_SIZE]) {
+    Stack stack;
+    initStack(&stack);
+    memset(output, '\0', BUFFER_SIZE);
+    int j = 0;
 
-    int operand = 0;
-
-    if (isdigit_string(operand_name) != -1) {
-        operand = isdigit_string(operand_name);
-    } else {
-        int operand_value = find_variable(state, operand_name);
-
-        if (operand_value != -1) {
-            operand = state->memory[operand_value].data;
-        } else {
-            perror("There is no such a variable");
-            return perform_operation_invalid;
+    for (int i = 0; i < inpLen; ++i) {
+        if (checkOutputOverflow(j, output) != SUCCESS) {
+            deleteStack(&stack);
+            return OVERFLOW_ERROR;
         }
-    }
+        char chr = input[i];
 
-    if (index != -1) {
-        if (operation == '+') {
-            *result = state->memory[index].data + operand;
-        } else if (operation == '-') {
-            *result = state->memory[index].data - operand;
-        } else if (operation == '*') {
-            *result = state->memory[index].data * operand;
-        } else if (operation == '/') {
-            if (operand != 0) {
-                *result = state->memory[index].data / operand;
-            } else {
-                fprintf(stderr, "Error: Division by zero\n");
-                return perform_operation_zero;
+        if (isdigit(chr)) 
+        {
+            output[j++] = chr;
+            while (isdigit(input[++i])) {
+                output[j++] = input[i];
             }
-        } else if (operation == '%') {
-            if (operand != 0) {
-                *result = state->memory[index].data % operand;
-            } else {
-                fprintf(stderr, "Error: Division by zero\n");
-                return perform_operation_zero;
-            }
-        } else {
-            fprintf(stderr, "Error: Unsupported operation\n");
-            return perform_operation_invalid;
-        }
-
-        sort_memory_cells(state);
-        return perform_operation_ok;
-    } else {
-        fprintf(stderr, "Error: Variable '%s' not found\n", variable_name);
-        return perform_operation_invalid;
-    }
-}
-
-void free_interpreter_state(Interpreter_state* state) {
-    for (int i = 0; i < state->memory_size; ++i) {
-        free(state->memory[i].variable);
-    }
-    free(state->memory);
-}
-
-void free_instructions(Instruction* instructions, int instruction_count) {
-    for (int i = 0; i < instruction_count; ++i) {
-        free(instructions[i].node);
-        free(instructions[i].operation);
-    }
-
-    free(instructions);
-}
-
-void execute_instructions(Interpreter_state* state, Instruction* instructions, int instruction_count) {
-    for (int i = 0; i < instruction_count; ++i) {
-        if (instructions[i].operation[0] == 'p') {
-            if (instructions[i].node[0].variable == NULL) {
-                for (int j = 0; j < state->memory_size; j++) {
-                    printf("%s = %d\n", state->memory[j].variable, state->memory[j].data);
-                }
-            } else {
-                int index = find_variable(state, instructions[i].node[0].variable);
-
-                if (index != -1) {
-                    printf("%s = %d\n", instructions[i].node[0].variable, state->memory[index].data);
-                } else {
-                    for (int j = 0; j < state->memory_size; j++) {
-                        fprintf(stderr, "Error: Variable '%s' not found\n", state->memory[j].variable);
+            output[j++] = ' ';
+            --i;
+            continue;
+        } 
+        else if (isoperator(chr)) 
+        {
+            char opr1 = chr;
+            char opr2 = ' ';
+            if (!isEmpty(&stack))
+                opr2 = peek(&stack);
+            if (opr1 != '^') 
+            {   // правоассоциативность
+                while (!isEmpty(&stack) && opPr(opr1) <= opPr(opr2) && isoperator(opr2)) 
+                {
+                    opr2 = pop(&stack);
+                    output[j++] = opr2;
+                    output[j++] = ' ';
+                    if (checkOutputOverflow(j, output) != SUCCESS) {
+                        deleteStack(&stack);
+                        return OVERFLOW_ERROR;
+                    }
+                    if (!isEmpty(&stack)) {
+                        opr2 = peek(&stack);
+                    } else {
+                        break;
                     }
                 }
+                push(&stack, opr1);
+            }
+            else 
+            {   // левоассоциативность
+                while (!isEmpty(&stack) &&opPr(opr1) < opPr(opr2) && isoperator(opr2))
+                {
+                    opr2 = pop(&stack);
+                    output[j++] = opr2;
+                    output[j++] = ' ';
+                    if (checkOutputOverflow(j, output) != SUCCESS) {
+                        deleteStack(&stack);
+                        return OVERFLOW_ERROR;
+                    }
+                    if (!isEmpty(&stack)) {
+                        opr2 = peek(&stack);
+                    } else {
+                        break;
+                    }
+                }
+                push(&stack, opr1);
             }
         }
-
-        if (is_operator(instructions[i].operation[0])) {
-            int result = 0;
-            if (perform_operation(state, instructions[i].node[1].variable,
-                                  instructions[i].operation[1], instructions[i].node[2].variable, &result) == perform_operation_ok);
-
-            char* result_str;
-            int char_num = 0;
-
-            while (result != 0) {
-                result /= 10;
-                char_num++;
+        else if (chr == '(')
+        {
+            push(&stack, '(');
+        }
+        else if (chr == ')')
+        {
+            while (!isEmpty(&stack) && peek(&stack) != '(') {
+                output[j++] = pop(&stack);
+                output[j++] = ' ';
             }
-
-            result_str = (char*)malloc(sizeof(char) * (char_num + 1));
-            if (result_str == NULL) {
-                return;
+            if (isEmpty(&stack)) {
+                deleteStack(&stack);
+                return OPEN_BRACE_MISSING;
+            } else {
+                pop(&stack);
             }
-            result_str[char_num] = '\0';
-
-            sprintf(result_str, "%d", result);
-
-            if (instructions[i].operation[0] == '=') {
-                initialize_variable(state, instructions[i].node[0].variable, result_str);
-            }
-
-            free(result_str);
+        }
+        else if (!isspace(chr) && chr != '\0' && chr != '\n')
+        {
+            deleteStack(&stack);
+            return UNKNOWN_SYMBOL;
         }
     }
+    while (!isEmpty(&stack))
+    {
+        if (checkOutputOverflow(j, output) != SUCCESS) {
+            deleteStack(&stack);
+            return OVERFLOW_ERROR;
+        }
+        if (peek(&stack) == '(') {
+            deleteStack(&stack);
+            return CLOSE_BRACE_MISSING;
+        }
+
+        output[j++] = pop(&stack);
+        output[j++] = ' ';
+    }
+    return SUCCESS;
 }
 
-enum handle_file_status_code handle_file(const char* input_file_path, Instruction** instructions, int* instructions_num) {
-    FILE* input_file = fopen(input_file_path, "r");
-
-    if (input_file == NULL) {
-        return handle_file_fail;
-    }
-
-    char buffer[256];
-    int count = 0;
-
-    while (fgets(buffer, sizeof(buffer), input_file)) {
-        Instruction new_instruction;
-        new_instruction.node = malloc(3 * sizeof(MemoryCell));
-        new_instruction.operation = malloc(sizeof(char) * 2);
-
-        char current_char;
-        char* variable;
-        int operators_num = 0;
-        int variable_num = 0;
-        int i = 0;
-
-        variable = (char*)malloc(sizeof(char) * 6);
-
-        if (variable == NULL) {
-            return handle_file_fail;
-        }
-
-        for (int cc = 0; cc < strlen(buffer); cc++) {
-            current_char = buffer[cc];
-
-            if (isalpha(current_char) || isdigit(current_char)) {
-                variable[i] = current_char;
-                i++;
-                if (i % 5 == 0) {
-                    variable = (char*)realloc(variable, sizeof(char) * (i + 5));
-                }
-            }
-            if (is_operator(current_char)) {
-                new_instruction.operation[operators_num] = current_char;
-                operators_num++;
-                variable[i] = '\0';
-                strcpy(new_instruction.node[variable_num].variable, variable);
-                variable_num++;
-                i = 0;
-                free(variable);
-                variable = (char*)malloc(sizeof(char) * 5);
-            }
-            if (strcmp(variable, "print") == 0) {
-                new_instruction.operation[operators_num] = 'p';
-                operators_num++;
-            }
-            if (current_char == ';') {
-                if (variable != NULL) {
-                    variable[i] = '\0';
-                    strcpy(new_instruction.node[variable_num].variable, variable);
-                    variable_num++;
-                    i = 0;
-                }
-            }
-        }
-
-        count++;
-
-        *instructions = (Instruction*)realloc(*instructions, (count) * sizeof(Instruction));
-
-        if (*instructions == NULL) {
-            free(variable);
-            fclose(input_file);
-            return handle_file_fail;
-        }
-
-        (*instructions)[count - 1] = new_instruction;
-    }
-
-    fclose(input_file);
-
-    *instructions_num = count;
-
-    return handle_file_ok;
+void calcExit(const char input[], const size_t inpLen, Stack *stack) {
+    deleteStack(stack);
+    // for (size_t i = 0; i < inpLen-1; ++i) {
+    //     if (input[i] == '\0') input[i] = ' ';
+    // }
 }
 
-int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
-        exit(EXIT_FAILURE);
+ErrorCode calculate(const char input2[], const size_t inpLen, int *result) {
+    if (result == NULL)
+        return INCORRECT_INPUT;
+    Stack stack;
+    initStack(&stack);
+    char input[BUFFER_SIZE];
+    for (size_t i = 0; i < inpLen; ++i)
+        input[i] = input2[i];
+
+    char *token = strtok(input, " ");
+    while (token != NULL) {
+        if (isdigit(token[0])) {
+            char *endptr;
+            long num = strtol(token, &endptr, 10);
+            if (*endptr != '\0') {
+                calcExit(input, inpLen, &stack);
+                return INCORRECT_INPUT;
+            }
+            push(&stack, (int)num);
+        } else {
+            if (isEmpty(&stack)) {
+                calcExit(input, inpLen, &stack);
+                return INCORRECT_INPUT;
+            }
+            int operand2 = pop(&stack);
+            if (isEmpty(&stack)) {
+                calcExit(input, inpLen, &stack);
+                return INCORRECT_INPUT;
+            }
+            int operand1 = pop(&stack);
+            int res;
+            switch (token[0]) {
+                case '+':
+                    res = operand1 + operand2;
+                    break;
+                case '-':
+                    res = operand1 - operand2;
+                    break;
+                case '*':
+                    res = operand1 * operand2;
+                    break;
+                case '/':
+                    if (operand2 == 0) {
+                        calcExit(input, inpLen, &stack);
+                        return DIVISION_BY_ZERO;
+                    }
+                    res = operand1 / operand2;
+                    break;
+                case '%':
+                    if (operand2 == 0) {
+                        calcExit(input, inpLen, &stack);
+                        return DIVISION_BY_ZERO;
+                    }
+                    res = operand1 % operand2;
+                    break;
+                case '^':
+                    res = 1;
+                    for (int i = 0; i < operand2; ++i) {
+                        res *= operand1;
+                    }
+                    break;
+                default:
+                    calcExit(input, inpLen, &stack);
+                    return INCORRECT_INPUT;
+            }
+            push(&stack, res);
+        }
+        token = strtok(NULL, " ");
     }
 
-    const char* input_file_path = argv[1];
-    int instruction_num;
-    Instruction* instructions = NULL;
-    Interpreter_state state = { NULL, 0 };
-
-    switch (handle_file(input_file_path, &instructions, &instruction_num)) {
-    case handle_file_ok:
-        sort_memory_cells(&state);
-        execute_instructions(&state, instructions, instruction_num);
-        free_interpreter_state(&state);
-        free_instructions(instructions, instruction_num);
-        break;
-    case handle_file_fail:
-        fprintf(stderr, "Error: Failed to handle the file\n");
-        exit(EXIT_FAILURE);
-    case handle_file_no_name:
-        fprintf(stderr, "Error: Failed to allocate memory for variable name\n");
-        exit(EXIT_FAILURE);
-    case handle_file_no_operation:
-        fprintf(stderr, "Error: Failed to allocate memory for operation\n");
-        exit(EXIT_FAILURE);
+    if (isEmpty(&stack)) {
+        calcExit(input, inpLen, &stack);
+        return INCORRECT_INPUT;
+    }
+    *result = pop(&stack);
+    if (!isEmpty(&stack)) {
+        calcExit(input, inpLen, &stack);
+        return INCORRECT_INPUT;
     }
 
-    return 0;
+    calcExit(input, inpLen, &stack);
+    return SUCCESS;
+}
+
+ErrorCode openOutputFile(const char inputFile[], const int fileExists, FILE** file) {
+    size_t inputLen = strnlen(inputFile, BUFFER_SIZE);
+    if (inputLen >= BUFFER_SIZE - 7) {
+        return INCORRECT_INPUT;
+    }
+
+    char outputFile[BUFFER_SIZE];
+    strncpy(outputFile, inputFile, inputLen);
+    strncpy(outputFile + inputLen, ".output", 7);
+
+    if (fileExists) {
+        *file = fopen(outputFile, "a");
+    } else {
+        *file = fopen(outputFile, "w");
+    }
+    if (*file == NULL) {
+        return FILE_OPENING_ERROR;
+    }
+
+    return SUCCESS;
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("%s <file1> <file2> ... <fileN>\n", argv[0]);
+        return INCORRECT_INPUT;
+    }
+
+    for (int i = 1; i < argc; ++i) {
+        FILE *file = fopen(argv[i], "r");
+        if (file == NULL) {
+            printf("%s: %s\n", argv[i], errorMessages[FILE_OPENING_ERROR]);
+            continue;
+        }
+        printf("📄 Файл: %s\n", argv[i]);
+        fflush(stdout);
+
+        char line[BUFFER_SIZE];
+        size_t lineLen = sizeof(line);
+        memset(line, '\0', lineLen);
+        int lineNum = 0;
+        int hasOutFile = 0;
+        while (fgets(line, sizeof(line), file) != NULL) {
+            char output[BUFFER_SIZE];
+            size_t outLen = sizeof(output);
+            int res;
+            printf(" Исходное: %s", line);
+
+            ErrorCode problem = shuntingYard(line, lineLen, output);
+            if (problem != SUCCESS) {
+                FILE *out;
+                ErrorCode code = openOutputFile(argv[i], hasOutFile, &out);
+                switch (code) {
+                    default:
+                        fclose(file);
+                        return code;
+                    case SUCCESS:
+                        hasOutFile = 1;
+                        break;
+                }
+                fprintf(out, "выражение %d: %s -> ошибка '%s'\n", lineNum, line, errorMessages[problem]);
+                fflush(out);
+                fclose(out);
+            } else {
+                printf(" Обр-Поль: %s\n", output);
+
+                problem = calculate(output, outLen, &res);
+                if (problem != SUCCESS) {
+                    FILE *out;
+                    ErrorCode code = openOutputFile(argv[i], hasOutFile, &out);
+                    switch (code) {
+                        default:
+                            fclose(file);
+                            return code;
+                        case SUCCESS:
+                            hasOutFile = 1;
+                            break;
+                    }
+                    fprintf(out, "выражение %d: %s -> ошибка '%s'\n", lineNum, line, errorMessages[problem]);
+                    fflush(out);
+                    fclose(out);
+                } else {
+                    printf(" = %d\n\n", res);
+                }
+            }
+
+            memset(line, '\0', lineLen);
+            ++lineNum;
+        }
+
+        fclose(file);
+    }
+
+    return SUCCESS;
 }
