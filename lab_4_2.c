@@ -261,7 +261,7 @@ enum execute_command_status_code execute_command(interpreter_state* state, const
     char array_name;
     int count, lb, rb;
     char target_array;
-    int start, end;
+    int start, end, position;
     
     if (sscanf(command, "%s %c", operation, &array_name) != 2) {
         return execute_command_invalid_syntax;
@@ -269,7 +269,7 @@ enum execute_command_status_code execute_command(interpreter_state* state, const
 
     if (strcmp(operation, "Load") == 0) {
         char file_name[50];
-        if (sscanf(command, "Load %c, %s;", &array_name, file_name) == 2) {
+        if (sscanf(command, "Load %c, %[^;];", &array_name, file_name) == 2) {
             if (load_array(&state->variables[array_name - 'A'], file_name) == load_array_fail) {
                 return execute_command_invalid_syntax;
             }
@@ -377,10 +377,18 @@ enum execute_command_status_code execute_command(interpreter_state* state, const
             } else {
                 if (sscanf(command, "Print %c, %d, %d;", &array_name, &start, &end) == 3) {
                     // Print elements from start to end
+                    if (start > end || end > state->variables[array_name - 'A'].array.size){
+                        return execute_command_invalid_syntax;
+                    }
                     for (int i = start; i <= end && i < state->variables[array_name - 'A'].array.size; ++i) {
                         printf("%d ", state->variables[array_name - 'A'].array.data[i]);
                     }
                     printf("\n");
+                } else if (sscanf(command, "Print %c, %d;", &array_name, &position) == 2){
+                    if (position > state->variables[array_name - 'A'].array.size){
+                        return execute_command_invalid_syntax;
+                    }
+                    printf("%d\n", state->variables[array_name - 'A'].array.data[position]);
                 } else {
                     return execute_command_invalid_syntax;
                 }
@@ -426,9 +434,9 @@ int main(int argc, char* argv[]) {
     fclose(file);
 
     // Cleanup
-    for (int i = 0; i < 26; ++i) {
+    /*for (int i = 0; i < 26; ++i) {
         free_array(&state.variables[i]);
-    }
+    } */
 
     return 0;
 }
