@@ -6,6 +6,18 @@
 
 enum handle_input_file_status_code {handle_input_file_ok, handle_input_file_fail};
 
+enum insert_into_cache_file_status_code {insert_into_cache_file_exists, insert_into_cache_file_ok};
+
+enum insert_into_cache_status_code {insert_into_cache_ok, insert_into_cache_fail};
+
+enum create_cache_status_code {create_cache_ok, create_cache_fail};
+
+enum free_hash_cache_status_code {free_hash_cache_ok};
+
+enum rehash_cache_status_code {rehash_cache_ok, rehash_cache_fail};
+
+enum check_and_resize_status_code {check_and_resize_ok, check_and_resize_fail};
+
 typedef struct  Hash_Cash_Node{
     unsigned int key; // The key associated with the hash
     unsigned int hash;  // The calculated hash value
@@ -69,9 +81,13 @@ int next_prime_after(int n) {
 }
 
 // Function to create the table
-void create_cache(Hash_Cache* cache, int size){
+enum create_cache_status_code create_cache(Hash_Cache* cache, int size){
     cache->entries = (Hash_Cash_Node*)malloc(size * sizeof(Hash_Cash_Node));
+    if (cache->entries == NULL){
+        return create_cache_fail;
+    }
     cache->size = size;
+    return create_cache_ok;
 }
 
 // Function to calculate the key value of a <def_name>
@@ -125,7 +141,7 @@ const char* get_value_from_cache(Hash_Cache* cache, const char* string_key, int 
 
 
 // Function to free memory allocated for the hash cache
-void free_hash_cache(Hash_Cache* cache) {
+enum free_hash_cache_status_code free_hash_cache(Hash_Cache* cache) {
     for (int i = 0; i < cache->size; i++) {
         Hash_Cash_Node* current = cache->entries[i].next;
         while (current != NULL) {
@@ -138,15 +154,23 @@ void free_hash_cache(Hash_Cache* cache) {
         cache->entries[i].next = NULL;
     }
     free(cache->entries);
+    return free_hash_cache_ok;
 }
 
 
 
 // Function to rehash the table
-void rehash_cache(Hash_Cache** old_cache, Hash_Cache** new_cache, int new_size) {
+enum rehash_cache_status_code rehash_cache(Hash_Cache** old_cache, Hash_Cache** new_cache, int new_size) {
     // Create a new cache
     Hash_Cache* temp_new_cache = (Hash_Cache*)malloc(sizeof(Hash_Cache));
-    create_cache(temp_new_cache, new_size);
+    
+    if (temp_new_cache == NULL){
+        return rehash_cache_fail;
+    }
+
+    if (create_cache(temp_new_cache, new_size) == create_cache_fail){
+        return rehash_cache_fail;
+    }
 
     for (int i = 0; i < (*old_cache)->size; i++) {
         Hash_Cash_Node* node = &((*old_cache)->entries[i]);
@@ -161,6 +185,11 @@ void rehash_cache(Hash_Cache** old_cache, Hash_Cache** new_cache, int new_size) 
             }
 
             new_node->next = (Hash_Cash_Node*)malloc(sizeof(Hash_Cash_Node));
+            
+            if (temp_new_cache == NULL){
+                return rehash_cache_fail;
+            }
+
             new_node->next->key = key;
             new_node->next->hash = new_hash;
             new_node->next->value = value;
@@ -183,11 +212,12 @@ void rehash_cache(Hash_Cache** old_cache, Hash_Cache** new_cache, int new_size) 
     
     // Update the new_cache pointer in the calling code
     *new_cache = temp_new_cache;
+    return rehash_cache_ok;
 }
 
 
 // Function to check the load_factor of chains, to resize or not
-void check_and_resize(Hash_Cache* cache, Hash_Cache* new_cache) {
+enum check_and_resize_status_code check_and_resize(Hash_Cache* cache, Hash_Cache* new_cache) {
     int LOAD_FACTOR = 2;
     int shortest_chain = 2;
     int longest_chain = 0;
@@ -209,15 +239,23 @@ void check_and_resize(Hash_Cache* cache, Hash_Cache* new_cache) {
     // Check for significant difference
     if (longest_chain >= LOAD_FACTOR * shortest_chain) {
         int new_size = next_prime_after(cache->size);
-        rehash_cache(&cache, &new_cache, new_size);
+        if (rehash_cache(&cache, &new_cache, new_size) == rehash_cache_fail){
+            return check_and_resize_fail;
+        }
     }
+    return check_and_resize_ok;
 }
 
 // Function to insert a key and hash into the hash table
-void insert_into_cache(Hash_Cache* cache, unsigned int key, unsigned int hash, const char* value, Hash_Cache* new_cache) {
+enum insert_into_cache_status_code insert_into_cache(Hash_Cache* cache, unsigned int key, unsigned int hash, const char* value, Hash_Cache* new_cache) {
 
     // Element does not exist, proceed with insertion
     Hash_Cash_Node* new_node = (Hash_Cash_Node*)malloc(sizeof(Hash_Cash_Node));
+    
+    if (new_node == NULL){
+        return insert_into_cache_fail;
+    }
+
     new_node->key = key;
     new_node->hash = hash;
     new_node->value = malloc(strlen(value) + 1);
@@ -227,20 +265,24 @@ void insert_into_cache(Hash_Cache* cache, unsigned int key, unsigned int hash, c
     cache->entries[hash].next = new_node;
 
     // Call check_and_resize after inserting an element
-    check_and_resize(cache, new_cache);
+    if (check_and_resize(cache, new_cache) == check_and_resize_fail){
+        return insert_into_cache_fail;
+    }
+    return insert_into_cache_ok;
 }
 
-void insert_into_cache_file(Hash_Cache* cache, const char* string_key, const char* value, Hash_Cache* new_cache){
+enum insert_into_cache_file_status_code insert_into_cache_file(Hash_Cache* cache, const char* string_key, const char* value, Hash_Cache* new_cache){
 
     const char* existing_value = get_value_from_cache(cache, string_key, cache->size);
     if (existing_value != NULL) {
         // Element already exists, no need to insert
-        return;
+        return insert_into_cache_file_exists;
     }
 
     unsigned int key = calculate_key(string_key);
     unsigned int hash = calculate_hash(string_key, cache->size);
     insert_into_cache(cache, key, hash, value, new_cache);
+    return insert_into_cache_file_ok;
 }
 
 
