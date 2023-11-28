@@ -154,7 +154,7 @@ enum execute_instructions_status_code execute_instructions (BaseCells* base_cell
                 int index = find_variable(base_cell, instruction.node[0].variable);
                 // Found variable
                 if (index != -1){
-                    printf("%s = %d", instruction.node[0].variable, base_cell->memmory[index].data);
+                    printf("%s = %d\n", instruction.node[0].variable, base_cell->memmory[index].data);
                 } else {
                 // Not found
                 printf("There is no such variable: %s\n", instruction.node[0].variable);

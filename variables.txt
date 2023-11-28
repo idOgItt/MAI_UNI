@@ -2,6 +2,6 @@ myvar = 15;
 bg = 25;
 ccc = bg + 11;
 print ccc;
-myvar = ссс;
+myvar = ccc;
 bg = ccc * myvar;
 print;
