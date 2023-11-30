@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct {
+typedef struct 
+{
     Trie_node** children;
     char character;
     int num_children;
@@ -12,21 +13,24 @@ typedef struct {
 typedef struct
 {
     double koeff;
-    Trie_node* variables;
+    Trie_node** variables;
+    int num_variables;
     Monom* prev;
     Monom* next;
 } Monom;
 
-typedef struct{
+typedef struct
+{
     Monom* head;
     Monom* tail;
+    int constanta;
 } Polynom;
 
-typedef struct {
+typedef struct
+{
     Polynom* Polynom;
     char* operation;
 } Instruction;
-
 
 Trie_node* create_Trie_node(char character){
     Trie_node* new_node = (Trie_node*)malloc(sizeof(Trie_node));
@@ -43,7 +47,14 @@ Trie_node* insert_variable(Trie_node* root, const char* variable, int degree) {
     Trie_node* current = root;
 
     for (int i = 0; variable[i] != '\0'; ++i) {
-        char current_char = variable[i];
+        char current_char;
+
+        if (isalpha(variable[i])){
+            current_char = tolower(variable[i]);
+        } else {
+            current_char = variable[i];
+        }
+
         int found = 0;
 
         for (int j = 0; j < current->num_children; j++) {
@@ -124,7 +135,10 @@ Trie_node* copy_Trie_node(const Trie_node* root) {
 Monom create_Monom(double koeff, Trie_node* variable){
     Monom new_monom;
     new_monom.koeff = koeff;
-    new_monom.variables = variable;
+    new_monom.num_variables = 0;
+    new_monom.variables = (Trie_node**)realloc(new_monom.variables, sizeof(Trie_node*) * new_monom.num_variables);
+    new_monom.variables[new_monom.num_variables] = variable;
+    new_monom.num_variables++;
 
     return new_monom;
 }
