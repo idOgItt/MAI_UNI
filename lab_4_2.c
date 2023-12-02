@@ -30,12 +30,11 @@ typedef struct {
 } array_variable;
 
 typedef struct {
-    array_variable variables[26]; // A-Z
+    array_variable variables[26];
 } interpreter_state;
 
 // Function to load array from file
 enum load_array_status_code load_array(array_variable* array_var, const char* input_file_path) {
-    int MAX_ARRAY_SIZE = 500;
     FILE* input_file = fopen(input_file_path, "r");
     if (input_file == NULL) {
         return load_array_fail;
@@ -45,12 +44,6 @@ enum load_array_status_code load_array(array_variable* array_var, const char* in
     int count = 0;
 
     while (fscanf(input_file, "%d", &value) == 1) {
-        if (count == MAX_ARRAY_SIZE) {
-            fprintf(stderr, "Array size exceeds the maximum allowed size.\n");
-            fclose(input_file);
-            return load_array_fail;
-        }
-
         array_var->array.data[count] = value;
         count++;
     }
@@ -77,10 +70,6 @@ enum save_array_status_code save_array(const array_variable* array_var, const ch
 
 // Function to generate random values in an array
 enum fill_random_status_code fill_random(array_variable* array_var, int count, int lb, int rb) {
-    int MAX_ARRAY_SIZE = 500;
-    if (count > MAX_ARRAY_SIZE) {
-        return fill_random_invalid_parameter;
-    }
 
     array_var->array.size = count;
 
@@ -93,12 +82,7 @@ enum fill_random_status_code fill_random(array_variable* array_var, int count, i
 
 // Function to concatenate arrays
 enum concat_array_status_code concat_arrays(array_variable* result, const array_variable* a, const array_variable* b) {
-    int MAX_ARRAY_SIZE = 500;
     int size = a->array.size + b->array.size;
-
-    if (size > MAX_ARRAY_SIZE) {
-        return concat_arrays_invalid_parameter;
-    }
 
     memcpy(result->array.data, a->array.data, a->array.size * sizeof(int));
     memcpy(result->array.data + a->array.size, b->array.data, b->array.size * sizeof(int));
@@ -129,16 +113,11 @@ enum remove_elements_status_code remove_elements(array_variable* array_var, int 
 
 // Function to copy elements from one array to another
 enum copy_elements_status_code copy_elements(array_variable* dest, const array_variable* src, int start, int end) {
-    int MAX_ARRAY_SIZE = 500;
     if (start < 0 || end >= src->array.size || start > end) {
         return copy_elements_invalid_parameter;
     }
 
     int count = end - start + 1;
-
-    if (count > MAX_ARRAY_SIZE) {
-        return copy_elements_invalid_parameter;
-    }
 
     memcpy(dest->array.data, src->array.data + start, count * sizeof(int));
     dest->array.size = count;
@@ -385,7 +364,7 @@ enum execute_command_status_code execute_command(interpreter_state* state, const
                     }
                     printf("\n");
                 } else if (sscanf(command, "Print %c, %d;", &array_name, &position) == 2){
-                    if (position > state->variables[array_name - 'A'].array.size){
+                    if (position >= state->variables[array_name - 'A'].array.size){
                         return execute_command_invalid_syntax;
                     }
                     printf("%d\n", state->variables[array_name - 'A'].array.data[position]);
@@ -414,6 +393,14 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < 26; ++i) {
         state.variables[i].name = 'A' + i;
         state.variables[i].array.data = (int*)malloc(MAX_ARRAY_SIZE * sizeof(int));
+        
+        if (state.variables[i].array.data == NULL){
+            for (int j = 0; j < i; j++){
+                free(state.variables[i].array.data);
+            }
+            return -1;
+        }
+
         state.variables[i].array.size = 0;
     }
 
@@ -421,6 +408,11 @@ int main(int argc, char* argv[]) {
     FILE* file = fopen(instructions_file, "r");
     if (file == NULL) {
         fprintf(stderr, "Error opening file: %s\n", instructions_file);
+        
+        for (int i = 0; i < 26; ++i){
+            free(state.variables[i].array.data);
+        }
+        
         return 1;
     }
 
