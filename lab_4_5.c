@@ -26,23 +26,23 @@ typedef enum {
 } ErrorCode;
 
 static const char* errorMessages[] = {
-    "Всё хорошо, можно идти пить чай ☕",
-    "Некорректный ввод, попробуйте ещё раз 🤨",
-    "Произошло переполнение, ой 🤯",
-    "Проблемы с выделением памяти, грустно 😐",
-    "Не удалось открыть файл, грустно 😥",
-    "Файл прочитан не полностью, грустно 😿",
-    "Месье, у Вас '(' пропала из выражения 🧐",
-    "Месье, у Вас ')' пропала из выражения 🧐",
-    "Месье, найден неопознанный символ в выражении 🧐",
-    "Месье, делить на ноль запрещенно 🧐",
-    "Неизвестная ошибка, что-то пошло не так 🫢"
+    "Everything went fine",
+    "Invalid input",
+    "Stack overflow",
+    "Sygmentation fault",
+    "File invalid",
+    "File reading error",
+    "Missing '('",
+    "Missing ')'",
+    "Invalid char",
+    "Devision zero",
+    "Something went wrong"
 };
 
 #define BUFFER_SIZE 100
 
 typedef struct Node {
-    char data;
+    int data;
     struct Node* next;
 } Node;
 
@@ -50,8 +50,10 @@ typedef struct Stack {
     Node* top;
 } Stack;
 
-Node* createNode(const char data) {
+Node* createNode(const int data) {
     Node* newNode = (Node*)malloc(sizeof(Node));
+    if (newNode == NULL)
+        return NULL;
     newNode->data = data;
     newNode->next = NULL;
     return newNode;
@@ -65,13 +67,15 @@ int isEmpty(Stack* stack) {
     return (stack->top == NULL);
 }
 
-void push(Stack* stack, const char data) {
+void push(Stack* stack, const int data) {
     Node* newNode = createNode(data);
+    if (newNode == NULL)
+        return;
     newNode->next = stack->top;
     stack->top = newNode;
 }
 
-char pop(Stack* stack) {
+int pop(Stack* stack) {
     if (isEmpty(stack)) {
         printf("Стек пуст 🪣\n");
         return -1;
@@ -83,7 +87,7 @@ char pop(Stack* stack) {
     return poppedData;
 }
 
-char peek(Stack* stack) {
+int peek(Stack* stack) {
     if (isEmpty(stack)) {
         printf("Стек пуст 🪣\n");
         return -1;
@@ -167,7 +171,7 @@ ErrorCode shuntingYard(const char input[], int inpLen, char output[BUFFER_SIZE])
             if (!isEmpty(&stack))
                 opr2 = peek(&stack);
             if (opr1 != '^') 
-            {   // правоассоциативность
+            {   // левоассоциативность
                 while (!isEmpty(&stack) && opPr(opr1) <= opPr(opr2) && isoperator(opr2)) 
                 {
                     opr2 = pop(&stack);
@@ -186,7 +190,7 @@ ErrorCode shuntingYard(const char input[], int inpLen, char output[BUFFER_SIZE])
                 push(&stack, opr1);
             }
             else 
-            {   // левоассоциативность
+            {   // правоассоциативность
                 while (!isEmpty(&stack) &&opPr(opr1) < opPr(opr2) && isoperator(opr2))
                 {
                     opr2 = pop(&stack);
@@ -337,14 +341,18 @@ ErrorCode calculate(const char input2[], const size_t inpLen, int *result) {
 }
 
 ErrorCode openOutputFile(const char inputFile[], const int fileExists, FILE** file) {
-    size_t inputLen = strnlen(inputFile, BUFFER_SIZE);
-    if (inputLen >= BUFFER_SIZE - 7) {
+    if (inputFile == NULL)
+        return INCORRECT_INPUT;
+    size_t inputLen = strnlen(inputFile, BUFFER_SIZE); // без \0
+    size_t extenLen = sizeof(".output"); // с \0
+    if (inputLen > BUFFER_SIZE - extenLen) { 
         return INCORRECT_INPUT;
     }
 
     char outputFile[BUFFER_SIZE];
+    memset(outputFile, '\0', BUFFER_SIZE);
     strncpy(outputFile, inputFile, inputLen);
-    strncpy(outputFile + inputLen, ".output", 7);
+    strncpy(outputFile + inputLen, ".output", extenLen);
 
     if (fileExists) {
         *file = fopen(outputFile, "a");
@@ -370,7 +378,7 @@ int main(int argc, char *argv[]) {
             printf("%s: %s\n", argv[i], errorMessages[FILE_OPENING_ERROR]);
             continue;
         }
-        printf("📄 Файл: %s\n", argv[i]);
+        printf(" Файл: %s\n", argv[i]);
         fflush(stdout);
 
         char line[BUFFER_SIZE];
@@ -385,24 +393,8 @@ int main(int argc, char *argv[]) {
             printf(" Исходное: %s", line);
 
             ErrorCode problem = shuntingYard(line, lineLen, output);
-            if (problem != SUCCESS) {
-                FILE *out;
-                ErrorCode code = openOutputFile(argv[i], hasOutFile, &out);
-                switch (code) {
-                    default:
-                        fclose(file);
-                        return code;
-                    case SUCCESS:
-                        hasOutFile = 1;
-                        break;
-                }
-                fprintf(out, "выражение %d: %s -> ошибка '%s'\n", lineNum, line, errorMessages[problem]);
-                fflush(out);
-                fclose(out);
-            } else {
-                printf(" Обр-Поль: %s\n", output);
 
-                problem = calculate(output, outLen, &res);
+            for (int j = 1; j <= 2; ++j) {
                 if (problem != SUCCESS) {
                     FILE *out;
                     ErrorCode code = openOutputFile(argv[i], hasOutFile, &out);
@@ -417,7 +409,11 @@ int main(int argc, char *argv[]) {
                     fprintf(out, "выражение %d: %s -> ошибка '%s'\n", lineNum, line, errorMessages[problem]);
                     fflush(out);
                     fclose(out);
-                } else {
+                    break;
+                } else if (j == 1) {
+                    printf(" Обр-Поль: %s\n", output);
+                    problem = calculate(output, outLen, &res);
+                } else if (j == 2) {
                     printf(" = %d\n\n", res);
                 }
             }
