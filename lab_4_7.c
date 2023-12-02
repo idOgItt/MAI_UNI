@@ -279,9 +279,39 @@ enum handle_file_status_code handle_file(char* input_file_path, Instruction** in
         int num_operation = 0;
         int num_variable = 0;
         char* variable = (char*)malloc(sizeof(char) * 50);
-        char* operand_f = (char*)malloc(sizeof(char) * 50);  
+
+        if (variable == NULL){
+            fclose(input_file);
+            return handle_file_error;
+        }
+
+        char* operand_f = (char*)malloc(sizeof(char) * 50);
+        
+        if (operand_f == NULL){
+            free(variable);
+            fclose(input_file);
+            return handle_file_error;
+        }
+
         char* operand_s = (char*)malloc(sizeof(char) * 50);
+
+        if (operand_s == NULL){
+            free(variable);
+            free(operand_f);
+            fclose(input_file);
+            return handle_file_error;
+        }
+
         char* print_operation = (char*)malloc(sizeof(char) * 5);
+        
+        if (print_operation == NULL){
+            free(variable);
+            free(operand_f);
+            free(operand_s);
+            fclose(input_file);
+            return handle_file_error;
+        }
+
         char operation;
 
         if(sscanf(buffer, "%s = %s %c %[^;];", variable, operand_f, &operation, operand_s) == 4){
@@ -289,8 +319,28 @@ enum handle_file_status_code handle_file(char* input_file_path, Instruction** in
             // var = var + var;
 
                 variable = (char*)realloc(variable, sizeof(char) * (strlen(variable) + 1));
+                
+                if (variable == NULL){
+                    free(operand_f); free(operand_s);
+                    fclose(input_file);
+                    return handle_file_error;
+                }
+
                 operand_f = (char*)realloc(operand_f, sizeof(char) * (strlen(operand_f) + 1));
+                
+                if (operand_f == NULL){
+                    free(variable); free(operand_s);
+                    fclose(input_file);
+                    return handle_file_error;
+                }
+
                 operand_s = (char*)realloc(operand_s, sizeof(char) * (strlen(operand_s) + 1));
+
+                if (operand_s == NULL){
+                    free(operand_f); free(variable);
+                    fclose(input_file);
+                    return handle_file_error;
+                }
 
                 // operation is true
                if (is_operatorion(operation)){
