@@ -10,15 +10,44 @@ enum sum_string_status_code {
 
 enum sum_string_status_code sum_string(char** result, int base, int count, ...);
 
+void trim(char *str) {
+    int length = strlen(str);
+    int start = 0;
+    int end = length - 1;
+
+    // Trim leading spaces and newline characters
+    while (start < length && (str[start] == ' ' || str[start] == '\n')) {
+        start++;
+    }
+
+    // Trim trailing spaces and newline characters
+    while (end > start && (str[end] == ' ' || str[end] == '\n')) {
+        end--;
+    }
+
+    // Shift characters to the beginning
+    for (int i = start; i <= end; i++) {
+        str[i - start] = str[i];
+    }
+
+    // Null-terminate the trimmed string
+    str[end - start + 1] = '\0';
+
+    if (strlen(str) == 0){
+        str[start] = '0';
+    }
+}
+
 int main() {
     int base = 2;
     int count = 3;
-    char* string_1 = "000100";
-    char* string_2 = "010";
-    char* string_3 = "001";
+    char* string_1 = "001000";
+    char* string_2 = "001";
+    char* string_3 = "100";
     char* result = NULL;
 
     if (sum_string(&result, base, count, string_1, string_2, string_3) == sum_string_ok) {
+        trim(result);
         printf("The resulted sum is %s\n", result);
         free(result);
     } else {
@@ -60,6 +89,7 @@ enum sum_string_status_code sum_string(char** result, int base, int count, ...) 
     }
 
     *result = (char*)malloc(max_length + 10);
+    
     if (*result == NULL) {
         va_end(strings);
         return sum_string_fail;
