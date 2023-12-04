@@ -8,17 +8,22 @@ enum define_number_float_status_code {
     define_number_float_fail
 };
 
-enum define_number_float_status_code define_number_float(double*** result, int base, int count, ...) {
+enum define_number_float_status_code define_number_float(double*** result, const int base, int count, ...) {
     va_list numbers;
     va_start(numbers, count);
 
     *result = (double**)malloc(count * sizeof(double*));
+    
     for (int i = 0; i < count; i++) {
         (*result)[i] = (double*)malloc(2 * sizeof(double));
-    }
 
-    if (*result == NULL) {
-        return define_number_float_fail;
+        if ((*result)[i] == NULL) {
+            for (int j = 0; j < i; j++){
+                free(*result[i]);
+            }
+            free(*result);
+           return define_number_float_fail;
+        }
     }
 
     for (int i = 0; i < count; i++) {
@@ -33,51 +38,75 @@ enum define_number_float_status_code define_number_float(double*** result, int b
         }
 
         (*result)[i][0] = number;
-        double denominator = 1e8;
-        int numerator = (int)(number * denominator);
-        int isFinite = 1;
+        int denominator = 1;
+        int numerator;
+        int points = 0;
+        int isFinite = 0;
+        int base_cp = base;
 
-        int base_copy = base;
-   /*     while (base_copy % 2 == 0) {
-            base_copy /= 2;
+        if (base == 10){
+            (*result)[i][1] = 1;
+            continue;
         }
-        while (base_copy % 5 == 0) {
-            base_copy /= 5;
-        } */
+        
+        do{
+            number *= 10;
+            denominator *= 10;
+            points++;
+        } while(fmod(number, 10.0) != 0);
 
-        int gcd = 1;
-        int a = numerator;
-        int b = denominator;
+        numerator = number;
 
-
-        while (b != 0) {
-            int temp = b;
-            b = a % b;
-            a = temp;
+        while (numerator != 0 && denominator != 0 && numerator % 10 == 0 && denominator % 10 == 0){
+            numerator /= 10;
+            denominator /= 10;
         }
-        gcd = a;
 
-        numerator /= gcd;
-        denominator /= gcd;
+        while (numerator != 0 && denominator != 0 && numerator % 2 == 0 && denominator % 2 == 0){
+            numerator /= 2;
+            denominator /= 2;
+        }
 
-        printf("%lf\n", denominator);
+        while (numerator != 0 && denominator != 0 && numerator % 5 == 0 && denominator % 5 == 0){
+            numerator /= 5;
+            denominator /= 5;
+        }
 
-        // Проверяем, имеет ли дробь конечное представление в системе с заданным основанием.
-        printf("fmod = %lf\n", fmod(base_copy, denominator));
-        if (base_copy > denominator){
-            if (fmod(base_copy, denominator) != 0) {
-                isFinite = 0;
+        if (base_cp > denominator){
+            while (base_cp % denominator == 0){
+                base_cp /= denominator;
+                if (base_cp == 1){
+                    isFinite = 1;
+                }
+            }
+            if (isFinite != 1 && base_cp < denominator){
+                while (denominator % base_cp == 0){
+                    denominator /= base_cp;
+                    if (denominator == 1){
+                       isFinite = 1;
+                    }
+                }
             }
         } else {
-            if (fmod(denominator, base_copy) != 0) {
-                isFinite = 0;
+            while (denominator % base_cp == 0){
+                denominator /= base_cp;
+                if (denominator == 1){
+                    isFinite = 1;
+                }
+            }
+            if (isFinite != 1 && denominator < base_cp){
+                while (base_cp % denominator == 0){
+                    base_cp /= denominator;
+                    if (base_cp == 1){
+                       isFinite = 1;
+                    }
+                }
             }
         }
-        if ((base_copy % 5 == 0) && (base_copy % 2 ==0)){
-            isFinite = 1;
-        }
+
 
         (*result)[i][1] = isFinite;
+
     }
 
     va_end(numbers);
@@ -85,7 +114,7 @@ enum define_number_float_status_code define_number_float(double*** result, int b
 }
 
 int main() {
-    int base = 8;
+    int base = 32;
     double real_1 = 0.97;
     double real_2 = 0.5;
     double real_3 = 0.25;
