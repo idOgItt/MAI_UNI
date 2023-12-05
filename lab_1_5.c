@@ -99,8 +99,10 @@ enum status_code sum_expanation(double epsilon, double *result_expanation){
     double term = 1.0;
     double result = 1.0;
     unsigned int n = 1;
+    double prev_result = 5;
 
-    while (fabs(term) > epsilon) {
+    while (fabs(result - prev_result) > epsilon) {
+        prev_result = result;
         result += term;
         n++;
         term /= n;
@@ -116,8 +118,10 @@ enum status_code sum_two_expanation(double epsilon, double *result_two_expanatio
     double result = 0.0;
     unsigned int  n = 0;
     double koeff = 0.5;
+    double prev_result = 5.0;
 
-    while(fabs(term) > epsilon){
+    while(fabs(result - prev_result) > epsilon){
+        prev_result = result;
         result += term;
         n++;
 
@@ -139,8 +143,10 @@ enum status_code sum_three_expanation(double epsilon, double *result_three_expan
     double result = 0.0;
     double  n = 0;
     double koeff = 0.5;
+    double prev_result = 5.0;
 
-    while (fabs(term) > epsilon){
+    while (fabs(result - prev_result) > epsilon){
+        prev_result = result;
         result += term;
         n++;
         term = (powl(koeff, 2.0 * n) * powl(3, 3.0 * n) * powl(factorial_iterative(n), 3)) / factorial_iterative(3.0 * n);
@@ -156,18 +162,25 @@ enum status_code sum_expanation_expanation(double epsilon, double *result_expana
     double result = 0.0;
     double n = 1;
     double koeff = 0.5;
-    double p, t;
+    double prev_result = 5;
 
-    while (fabs(term) > epsilon) {
+    while (fabs(result - prev_result) > epsilon) {
+        prev_result = result;
         result += term;
         n++;
-        p = factorial_iterative(2 * n - 1);
-        t = factorial_iterative(2 * n);
+        double p = 1; double t = 1;
+        for (int i = 1; i <= 2 * n - 1; i+=2){
+            p *= i;
+        }
+
+        for (int i = 2; i <= 2 * n; i+=2){
+            t *= i;
+        }
 
         if ((int)n % 2 == 0) {
-            term = factorial_iterative(p) / (factorial_iterative(t) * pow(koeff, 2 * n));
+            term = p / t * pow(koeff, 2 * n);
         } else {
-            term = -factorial_iterative(p) / (factorial_iterative(t) * pow(koeff, 2 * n));
+            term = -p / t * pow(koeff, 2 * n);
         }
     }
 
