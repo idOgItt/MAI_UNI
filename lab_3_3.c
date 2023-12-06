@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 // Status code for the function table_sort
 enum table_sort_status_code {table_sort_ok, table_sort_fail};
 
-enum reading_table_status_code {reading_table_ok, reading_table_fail, reading_table_file_failed};
+enum reading_table_status_code {reading_table_ok, reading_table_fail, reading_table_file_failed, reading_table_error};
 
 enum main_table_opearator_status_code 
 {
@@ -19,8 +20,8 @@ enum main_table_opearator_status_code
 // Struct of fields in the file
 typedef struct {
     unsigned id;
-    char name[50];
-    char surname[50];
+    char* name;
+    char* surname;
     double salary;
 } Employee;
 
@@ -79,6 +80,8 @@ enum reading_table_status_code reading_table(FILE* input_file, Employee** employ
 
     char** line_errors = NULL;
     int num_errors = 0;
+    int num_string = 0;
+    int data_errors = 0;
 
     // Allocate memory for employees outside the loop
     *employees = malloc(sizeof(Employee));
@@ -88,16 +91,93 @@ enum reading_table_status_code reading_table(FILE* input_file, Employee** employ
     }
 
     while (fgets(buffer, sizeof(buffer), input_file) != NULL){
-        unsigned id;
-        char name[50];
-        char surname[50];
+        int id;
+        char* name = (char*)malloc(sizeof(char) * 50);
+
+        if (name == NULL){
+            return reading_table_fail;
+        }
+
+        char* surname = (char*)malloc(sizeof(char) * 50);
+
+        if (surname == NULL){
+            free(name);
+            return reading_table_fail;
+        }
+
         double salary;
+        num_string++;
 
         if (sscanf(buffer, "%u %s %s %lf", &id, name, surname, &salary) == 4){
+
+            name = (char*)realloc(name, sizeof(char) * strlen(name));
+            
+            if (name == NULL){
+                free(surname);
+                return reading_table_fail;
+            }
+
+            surname = (char*)realloc(surname, sizeof(char) * strlen(surname));
+
+            if (surname == NULL){
+                free(name);
+                return reading_table_fail;
+            }
+
+            int is_error = 0;
+
+            if (id < 0){
+                printf("An error occured in string: %d\n", num_string);
+                data_errors++;
+                continue;
+            }
+
+            for (int i = 0; i < strlen(name); i++){
+                if (!isalpha(name[i])){
+                    printf("An error occured in string: %d\n", num_string);
+                    data_errors++;
+                    is_error = 1;
+                    continue;
+                }
+                continue;
+            }
+
+            for (int i = 0; i < strlen(surname); i++){
+                if (!isalpha(surname[i])){
+                    printf("An error occured in string: %d\n", num_string);
+                    data_errors++;
+                    continue;
+                }
+            }
+
+            if (salary < 0){
+                printf("An error occured in string: %d\n", num_string);
+                data_errors++;
+                continue;
+            }
+
+            if (is_error){
+                continue;
+            }
+
             // Process the fields
             Employee employee;
             employee.id = id;
+
+            employee.name = (char*)malloc(sizeof(char) * strlen(name));
+            
+            if (employee.name == NULL){
+                return reading_table_fail;
+            }
+
             strcpy(employee.name, name);
+            
+            employee.surname = (char*)malloc(sizeof(char) * strlen(name));
+            
+            if (employee.surname == NULL){
+                return reading_table_fail;
+            }
+
             strcpy(employee.surname, surname);
             employee.salary = salary;
 
@@ -115,7 +195,9 @@ enum reading_table_status_code reading_table(FILE* input_file, Employee** employ
         } else {
             // Handle the error and skip the line
             // Allocate memory for a new string and copy the buffer content
-            char* new_error = strdup(buffer);
+            char* new_error;
+            new_error = (char*)malloc(strlen(buffer) * sizeof(char));
+            new_error = strdup(buffer);
 
             if (new_error == NULL) {
                 // Handle allocation failure
@@ -124,7 +206,7 @@ enum reading_table_status_code reading_table(FILE* input_file, Employee** employ
             }
 
             // Resize the array of errors and add the new error
-            line_errors = realloc(line_errors, (num_errors + 1) * sizeof(char*));
+            line_errors = (char**)realloc(line_errors, (num_errors + 1) * sizeof(char*));
 
             if (line_errors == NULL) {
                // Handle reallocation failure
@@ -132,15 +214,26 @@ enum reading_table_status_code reading_table(FILE* input_file, Employee** employ
                return reading_table_fail;
             }
 
+            line_errors[num_errors] = (char*)realloc(new_error, strlen(new_error) * sizeof(char));
+
+            if (line_errors[num_errors] == NULL){
+                return reading_table_fail;
+            }
+
             line_errors[num_errors] = new_error;
             num_errors++;
         }
+        if (name != NULL){
+            free(name);
+        }
+        if (surname != NULL){
+            free(surname);
+        }
     }
-
-    // TODO handle line errors
 
     // Free each error string
     for (int i = 0; i < num_errors; i++) {
+        printf("An error occured in reading line %d: %s\n", num_string, line_errors[i]);
         free(line_errors[i]);
     }
 
