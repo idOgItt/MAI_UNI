@@ -369,7 +369,7 @@ enum reading_students_status_code reading_students(FILE* input_file, Student** s
             }
 
             // Adding the student to the vector
-            *students = realloc(*students, (((*num_students) + 1) * 2) * sizeof(Student));
+            *students = realloc(*students, (((*num_students) + 1)) * sizeof(Student));
             
             if (*students == NULL) {
                 // Handle reallocation failure

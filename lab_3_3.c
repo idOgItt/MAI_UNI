@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 // Status code for the function table_sort
 enum table_sort_status_code {table_sort_ok, table_sort_fail};
@@ -163,6 +164,8 @@ enum reading_table_status_code reading_table(FILE* input_file, Employee** employ
                 continue;
             }
 
+            salary = fabs(salary);
+
             // Process the fields
             Employee employee;
             employee.id = id;
@@ -185,7 +188,7 @@ enum reading_table_status_code reading_table(FILE* input_file, Employee** employ
             employee.salary = salary;
 
             // Adding the employee to the vector
-            *employees = realloc(*employees, (((*num_employees) + 1) * 2) * sizeof(Employee));
+            *employees = realloc(*employees, (((*num_employees) + 1)) * sizeof(Employee));
             
             if (*employees == NULL) {
                 // Handle reallocation failure
@@ -326,7 +329,7 @@ enum main_table_opearator_status_code main_table_opearator(char* input_file_path
         compar.surname = compare_surname;
         compar.id = compare_id;
         break;
-    case 'b':
+    case 'd':
         compar.salary = compare_salary_desc;
         compar.name = compare_name_desk;
         compar.surname = compare_surname_desc;
@@ -375,9 +378,9 @@ int main (int argc, char* argv []){
 
     char flag = argv[2][1];
 
-    if (flag != 'a' && flag != 'b')
+    if (flag != 'a' && flag != 'd')
     {
-        printf("Invalid flag: %c. Use 'a' or 'b'\n", flag);
+        printf("Invalid flag: %c. Use 'a' or 'd'\n", flag);
         return 1;
     }
 
