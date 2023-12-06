@@ -129,6 +129,7 @@ enum reading_table_status_code reading_table(FILE* input_file, Employee** employ
             if (id < 0){
                 printf("An error occured in string: %d\n", num_string);
                 data_errors++;
+                is_error = 1;
                 continue;
             }
 
@@ -146,6 +147,7 @@ enum reading_table_status_code reading_table(FILE* input_file, Employee** employ
                 if (!isalpha(surname[i])){
                     printf("An error occured in string: %d\n", num_string);
                     data_errors++;
+                    is_error = 1;
                     continue;
                 }
             }
@@ -153,6 +155,7 @@ enum reading_table_status_code reading_table(FILE* input_file, Employee** employ
             if (salary < 0){
                 printf("An error occured in string: %d\n", num_string);
                 data_errors++;
+                is_error = 1;
                 continue;
             }
 
@@ -197,13 +200,14 @@ enum reading_table_status_code reading_table(FILE* input_file, Employee** employ
             // Allocate memory for a new string and copy the buffer content
             char* new_error;
             new_error = (char*)malloc(strlen(buffer) * sizeof(char));
-            new_error = strdup(buffer);
 
             if (new_error == NULL) {
                 // Handle allocation failure
                 free(line_errors); // Free previously allocated memory
                 return reading_table_fail;
             }
+
+            new_error = strdup(buffer);
 
             // Resize the array of errors and add the new error
             line_errors = (char**)realloc(line_errors, (num_errors + 1) * sizeof(char*));
@@ -223,9 +227,11 @@ enum reading_table_status_code reading_table(FILE* input_file, Employee** employ
             line_errors[num_errors] = new_error;
             num_errors++;
         }
+
         if (name != NULL){
             free(name);
         }
+
         if (surname != NULL){
             free(surname);
         }
@@ -279,6 +285,11 @@ enum table_sort_status_code table_sort(int num_employees, Employee** employees, 
 
 // Function to operate the table
 enum main_table_opearator_status_code main_table_opearator(char* input_file_path, char* output_file_path, char flag){
+
+    if (strcmp(input_file_path, output_file_path) == 0){
+        return main_table_opearator_fail;
+    }
+
     FILE* input_file;
     input_file = fopen(input_file_path, "r");
     if (input_file == NULL){
