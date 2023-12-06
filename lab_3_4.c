@@ -398,22 +398,23 @@ enum received_mail_status_code received_mail(const Post* post){
     return received_mail_ok;
 }
 
-enum late_mail_status_code late_mail(const Post* post){
+enum late_mail_status_code late_mail(const Post* post) {
     unsigned number_mails = 0;
     time_t rawtime;
-    struct tm * timeinfo;
+    struct tm *timeinfo;
 
-    time ( &rawtime );
-    timeinfo = localtime ( &rawtime );
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
 
-    Mail* mails;
-    for (int i = 0; i < post->number_mails; i++){
-        if (post->mails[i].is_recieved == 0){
-            if ((parse_date(post->mails[i].handle_date.data) - rawtime) < 1990){
-                mails = (Mail*)realloc(mails, sizeof(Mail) * (number_mails + 1));
-                
-                if (mails == NULL){
-                    return received_mail_fail;
+    Mail *mails = NULL;  // Initialize the array
+    for (int i = 0; i < post->number_mails; i++) {
+        if (post->mails[i].is_recieved == 0) {
+            time_t handle_time = parse_date(post->mails[i].handle_date.data);
+            if ((handle_time - rawtime) < 1990) {
+                mails = (Mail *)realloc(mails, sizeof(Mail) * (number_mails + 1));
+
+                if (mails == NULL) {
+                    return late_mail_fail;
                 }
 
                 mails[number_mails] = post->mails[i];
@@ -423,11 +424,14 @@ enum late_mail_status_code late_mail(const Post* post){
     }
     qsort(mails, number_mails, sizeof(Mail), compare_create_date);
 
-    for (int i = 0; i < number_mails; i++){
+    for (int i = 0; i < number_mails; i++) {
         Mail mail = mails[i];
-        printf("Id: %s, Create_date: %s, Handle_date: %s, Weight: %lf, City: %s, Street: %s, House: %u, Corpus: %s, Flat: %lf\n", 
-                    mail.id, mail.create_date, mail.handle_date, mail.weight, mail.receiver.city, mail.receiver.street, mail.receiver.number_house, mail.receiver.building, mail.receiver.flat_number);
+        printf("Id: %s, Create_date: %s, Handle_date: %s, Weight: %lf, City: %s, Street: %s, House: %u, Corpus: %s, Flat: %lf\n",
+               mail.id, mail.create_date, mail.handle_date, mail.weight, mail.receiver.city, mail.receiver.street,
+               mail.receiver.number_house, mail.receiver.building, mail.receiver.flat_number);
     }
 
+    free(mails);\
     return late_mail_ok;
 }
+
