@@ -6,7 +6,7 @@ enum number_to_base_status_code { number_to_base_ok, number_to_base_fail };
 enum number_to_base_status_code number_to_base(int num, int** result);
 
 int main() {
-    int num = 8;
+    int num = 0;
     int** result = NULL;
 
     result = (int**)malloc(sizeof(int*) * 5);
@@ -25,9 +25,22 @@ int main() {
             printf("The result in Base-%d: ", 1 << i);
             int j = 0;
             while (result[i-1][j] != -1) {
-                printf("%d ", result[i-1][j]);
+                if (result[i-1][j] > 9){
+                    printf ("%c ", 'A' + result[i-1][j] - 10);
+                } else {
+                    printf("%d ", result[i-1][j]);
+                }
                 j++;
             }
+            
+            if (num < 0){
+                printf("- ");
+            }
+
+            if (num == 0){
+                printf("0");
+            }
+
             printf("\n");
         }
     }
@@ -42,12 +55,20 @@ int main() {
 
 enum number_to_base_status_code number_to_base(int init_num, int** result) {
     int mask = ~1;
+    if (init_num < 0){
+        init_num = ~init_num;
+        init_num++;
+    }
     for (int base = 1; base <= 5; base++){
         int num = init_num;
         int i = 0;
 
         // Allocate memory for the result array
         result[base - 1] = (int*)malloc(sizeof(int) * 20);
+
+        if (result[base - 1] == NULL){
+            return -1;
+        }
 
         while (num > 0) {
             int remainder = num & ((1 << base) - 1);

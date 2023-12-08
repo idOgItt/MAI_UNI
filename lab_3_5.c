@@ -4,7 +4,7 @@
 #include <ctype.h>
 
 // Status codes for students_search
-enum student_search_status_code {student_search_ok, student_search_fail};
+enum student_search_status_code {student_search_ok, student_search_fail, student_search_not_found};
 
 enum reading_students_status_code {reading_students_ok, reading_students_fail};
 
@@ -114,6 +114,8 @@ enum student_search_status_code student_search(Student* students, const int num_
 
         if (found == 0){
             *result = NULL;
+            (*founded_students) = found;
+            return student_search_not_found;
         }
 
         (*founded_students) = found;
@@ -140,6 +142,8 @@ enum student_search_status_code student_search(Student* students, const int num_
 
         if (found == 0){
             *result = NULL;
+            (*founded_students) = found;
+            return student_search_not_found;
         }
 
         (*founded_students) = found;
@@ -166,6 +170,8 @@ enum student_search_status_code student_search(Student* students, const int num_
 
         if (found == 0){
             *result = NULL;
+            (*founded_students) = found;
+            return student_search_not_found;
         }
 
         (*founded_students) = found;
@@ -192,6 +198,8 @@ enum student_search_status_code student_search(Student* students, const int num_
 
         if (found == 0){
             *result = NULL;
+            (*founded_students) = found;
+            return student_search_not_found;
         }
 
         (*founded_students) = found;
@@ -454,8 +462,12 @@ enum students_sort_status_code students_sort(const int num_students, Student** s
     qsort(*students, num_students, sizeof(Student), compar);
 
     for(int i = 0; i < num_students; i++){
-        fprintf(output_file, "ID: %u, Name: %s, Surname: %s, Group: %s, Scores: %hhu\n", (*students)[i].id,
-                (*students)[i].name, (*students)[i].surname, (*students)[i].group, (*students)[i].scores[0]);
+        fprintf(output_file, "ID: %u, Name: %s, Surname: %s, Group: %s, Scores: ", (*students)[i].id,
+                (*students)[i].name, (*students)[i].surname, (*students)[i].group);
+        for (int j = 0; j < 5; j++){
+            fprintf(output_file, "%hhu ", (*students)[i].scores[j]);
+        }
+        fprintf(output_file, "\n");
     }
 
     fclose(output_file);
@@ -591,9 +603,8 @@ int main (int argc, char* argv[]){
         printf("3. Students' average higher \n");
         printf("0. To exit \n");
 
-        // TODO to char*
-        int choice;
-        scanf("%d", &choice);
+        char choice;
+        scanf("%c", &choice);
         Student* result_found = NULL;
         Student* result_average_scores = NULL;
         char* field_search = (char*)malloc(sizeof(char) * 50);
@@ -618,15 +629,14 @@ int main (int argc, char* argv[]){
 
         switch (choice)
         {
-        case 1:
+        case '1':
         // The choices for search
             printf("Where to put the result?\n");
-            // TODO char
-            int output_choice = 0;
+            char output_choice = '0';
 
-            while (output_choice != 1 && output_choice != 2){
+            while (output_choice != '1' && output_choice != '2'){
+                scanf("%c", &output_choice);
                 printf("The choices are: <1> File <2> Command line\n");
-                scanf("%d", &output_choice);
             }
 
             printf("For what field shoud the data be search : <id> <surname> <name> <group> ?");
@@ -635,7 +645,13 @@ int main (int argc, char* argv[]){
                 scanf("%s", field_search);
             }
 
-            char* argument = (char*)malloc(50 * sizeof(char));
+            char* argument = NULL;
+
+            argument = (char*)realloc(argument, 50 * sizeof(char));
+
+            if (argument == NULL){
+                return -1;
+            }
 
             printf("Enter the argument to find with\n");
             scanf("%s", argument);
@@ -643,12 +659,23 @@ int main (int argc, char* argv[]){
             int founded_students_search = 0;
 
             // To print in file
-            if (output_choice == 1){
-                output_file_path = (char*)malloc(sizeof(char) * 50);
+            if (output_choice == '1'){
+                output_file_path = (char*)realloc(output_file_path, sizeof(char) * 50);
+                
+                if (output_file_path == NULL){
+                    return -1;
+                }
+
                 printf("Enter the output_file_path: \n");
                 scanf("%s", output_file_path);
 
                 if (strcmp(input_file_path, output_file_path) == 0){
+                    perror("Different files\n");
+                    break;
+                }
+
+                if (output_file_path == NULL){
+                    perror("No such a file\n");
                     break;
                 }
 
@@ -660,7 +687,7 @@ int main (int argc, char* argv[]){
             
 
             // To print into command line
-            } else if (output_choice == 2){
+            } else if (output_choice == '2'){
 
                 if(student_search(students, num_students, &result_found, field_search, argument, &founded_students_search) == student_search_ok){
                     for (int i = 0; i < founded_students_search; i++){
@@ -680,7 +707,7 @@ int main (int argc, char* argv[]){
             }
             break;
         
-        case 2:
+        case '2':
         // The choices for sort;
             char flag_sort;
             //output_file_path = NULL;
@@ -710,6 +737,7 @@ int main (int argc, char* argv[]){
             }
 
             if (strcmp(input_file_path, output_file_path) == 0){
+                perror("Different files\n");
                 break;
             }
 
@@ -771,9 +799,14 @@ int main (int argc, char* argv[]){
             }
             break;
 
-        case 3:
+        case '3':
             printf("Enter the output_file_path: \n");
             scanf("%s", output_file_path);
+
+            if (strcmp(input_file_path, output_file_path) == 0){
+                perror("Different files\n");
+                break;
+            }
 
             if(stdout_students_higher_scores(students, num_students, &result_average_scores, output_file_path) == stdout_students_higher_scores_ok){
                 printf("The file was changed successfully\n");
@@ -782,7 +815,7 @@ int main (int argc, char* argv[]){
             }
             break;
 
-        case 0:
+        case '0':
             return 0;
 
         default:

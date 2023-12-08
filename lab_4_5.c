@@ -77,7 +77,7 @@ void push(Stack* stack, const int data) {
 
 int pop(Stack* stack) {
     if (isEmpty(stack)) {
-        printf("Стек пуст 🪣\n");
+        printf("Stack empty \n");
         return -1;
     }
     int poppedData = stack->top->data;
@@ -89,7 +89,7 @@ int pop(Stack* stack) {
 
 int peek(Stack* stack) {
     if (isEmpty(stack)) {
-        printf("Стек пуст 🪣\n");
+        printf("Stack empty \n");
         return -1;
     }
     return stack->top->data;
@@ -146,6 +146,16 @@ ErrorCode shuntingYard(const char input[], int inpLen, char output[BUFFER_SIZE])
     initStack(&stack);
     memset(output, '\0', BUFFER_SIZE);
     int j = 0;
+
+    while (isspace(input[0]))
+        ++input;
+    if (input[0] == '-') {
+        char input2[BUFFER_SIZE];
+        input2[0] = '0';
+        strncpy(input2+1, input, inpLen);
+        input = input2;
+        ++inpLen;
+    }
 
     for (int i = 0; i < inpLen; ++i) {
         if (checkOutputOverflow(j, output) != SUCCESS) {

@@ -1,89 +1,91 @@
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 
-enum polynomial_status_code {
-    polynomial_ok,
-    polynomial_fail
-};
+typedef enum {
+    SUCCESS = 0,
+    INCORRECT_INPUT,
+    OVERFLOW_ERROR,
+    MALLOC_ERROR,
+    FILE_OPENING_ERROR,
+    FILE_READING_ERROR,
+    UNKNOWN_ERROR
+} ErrorCode;
 
-enum polynomial_status_code polynomial_expansion(
-    double epsilon, double a, double **result,
-    int degree, ...
-) {
-    va_list coefficients;
-    va_start(coefficients, degree);
+void derivative(const int rank, double fArrray[]) {
+    if (!fArrray)
+        return;
+    // 1 + 2x + 3x^2 -> 2*1, 3*2, ...
+    for (int i = 0; i < rank; ++i)
+        fArrray[i] = fArrray[i+1] * (i+1);
+}
 
-    *result = (double *)malloc((degree + 1) * sizeof(double));
-    if (*result == NULL) {
-        va_end(coefficients);
-        return polynomial_fail;
+ErrorCode factor(const int rank, double x, const double fArrray[], double *res) {
+    if (!res || !fArrray || rank < 0)
+        return INCORRECT_INPUT;
+    *res = 0;
+    int curX = 1;
+    for (int i = 0; i <= rank; ++i) {
+        *res += fArrray[i] * curX;
+        curX *= x;
     }
+    return SUCCESS;
+}
 
-    // Если a равно 0, просто копируем коэффициенты
-    if (a == 0) {
-        for (int i = 0; i <= degree; i++) {
-            (*result)[i] = va_arg(coefficients, double);
+ErrorCode findGArray(const double epsilon, const double a, double **res, int rank, ...) {
+    if (!res || rank < 0)
+        return INCORRECT_INPUT;
+
+    *res = (double*)malloc((rank+1) * sizeof(double));
+    if (*res == NULL)
+        return MALLOC_ERROR;
+
+    double *fArrray = (double*)malloc((rank+1) * sizeof(double));
+    if (*res == NULL) {
+        free(res);
+        return MALLOC_ERROR;
+    }
+    va_list fList;
+    va_start(fList, rank);
+    for (int i = 0; i <= rank; ++i)
+        fArrray[i] = va_arg(fList, double);
+    va_end(fList);
+
+    double factN = 1; // факториал для знаменателя формулы тейлоа -> n!
+    for (int i = 0; i <= rank; ++i) {
+        double g;
+        // g_0 = f(a)
+        // g_1 = f(a)'/1!
+        // g_2 = f(a)''/2!
+        (void)factor(rank-i, a, fArrray, &g);
+        derivative(rank, fArrray);
+
+        if (i > 0) {
+            factN *= i;
+            g /= factN;
         }
-        va_end(coefficients);
-        return polynomial_ok;
+        (*res)[i] = g;
     }
-
-    double *temp = (double *)malloc((degree + 1) * sizeof(double));
-    if (temp == NULL) {
-        free(*result);
-        va_end(coefficients);
-        return polynomial_fail;
-    }
-
-    for (int i = 0; i <= degree; i++) {
-        temp[i] = va_arg(coefficients, double);
-    }
-    va_end(coefficients);
-
-    // Расчет коэффициентов результирующего многочлена
-    for (int i = 0; i <= degree; i++) {
-        double term = 1.0;
-        double sum = temp[i];
-
-        for (int j = 1; j <= i; j++) {
-            term *= (a - j + 1) / j;
-            sum += term * temp[i - j];
-        }
-
-        (*result)[i] = sum;
-    }
-
-    free(temp);
-
-    return polynomial_ok;
+    free(fArrray);
+    return SUCCESS;
 }
 
 int main() {
-    double epsilon = 0.0001;
-    double a = 2.0;
-    double *result;
-    int degree = 3;
-    double coeff0 = 1.0;
-    double coeff1 = -4.0;
-    double coeff2 = 0.0;
-    double coeff3 = 1.0;
+    // f(x) = f₀ + f₁x¹ + ... + fₙxⁿ = g₀ + g₁(x-a)¹ + ... + gₙ(x-a)ⁿ
 
-    if (polynomial_expansion(epsilon, a, &result, degree, coeff0, coeff1, coeff2, coeff3) == polynomial_ok) {
-        printf("Original polynomial: f(x) = %f + %fx + %fx^2 + %fx^3\n", coeff0, coeff1, coeff2, coeff3);
+    // f(x) = 2 + 3x + 4x², a = 2
 
-        printf("Expanded polynomial: f(x) = %f", result[0]);
-        for (int i = 1; i <= degree; i++) {
-            printf(" + %f(x - %.2lf)^%d", result[i], a, i);
-        }
-        printf("\n");
+    double *res;
+    int rank = 2;
+    int a = -1;
+    findGArray(0, a, &res, rank, 1.0, 2.0, 1.0);
+    printf("g₀₋ₙ: ");
+    for (int i = 0; i <= rank; ++i)
+        printf("%lf ", res[i]);
+    fflush(stdout);
 
-        free(result);
-    } else {
-        printf("The expansion failed\n");
-        return 1;
-    }
+    // 24 + 19(x-2) + 4(x-2)² = 24-38+19x+4(x²-4x+4) = -14+19x+4x²-16x+16 = 4x²+3x+2
 
-    return 0;
+    free(res);
+    return SUCCESS;
 }

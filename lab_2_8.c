@@ -43,7 +43,7 @@ int main() {
     int count = 3;
     char* string_1 = "001000";
     char* string_2 = "001";
-    char* string_3 = "100";
+    char* string_3 = "0100";
     char* result = NULL;
 
     if (sum_string(&result, base, count, string_1, string_2, string_3) == sum_string_ok) {

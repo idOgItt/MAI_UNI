@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 enum execute_command_status_code {execute_command_ok, execute_command_invalid_syntax, execute_command_unknown_operation};
 
@@ -235,7 +236,7 @@ enum print_stats_status_code print_stats(const array_variable* array_var, double
 }
 
 // Function to execute a command
-enum execute_command_status_code execute_command(interpreter_state* state, const char* command) {
+enum execute_command_status_code execute_command(interpreter_state* state, char* command) {
     char operation[20];
     char array_name;
     int count, lb, rb;
@@ -246,35 +247,48 @@ enum execute_command_status_code execute_command(interpreter_state* state, const
         return execute_command_invalid_syntax;
     }
 
-    if (strcmp(operation, "Load") == 0) {
+    for (int i = 0; i < strlen(operation); i++){
+        operation[i] = tolower(operation[i]);
+    }
+
+    for (int i = 0; i < strlen(command); i++){
+        command[i] = (char)tolower(command[i]);
+    }
+
+    if (strcmp(operation, "load") == 0) {
         char file_name[50];
-        if (sscanf(command, "Load %c, %[^;];", &array_name, file_name) == 2) {
+        if (sscanf(command, "load %c, %[^;];", &array_name, file_name) == 2) {
+            array_name = toupper(array_name);
             if (load_array(&state->variables[array_name - 'A'], file_name) == load_array_fail) {
                 return execute_command_invalid_syntax;
             }
         } else {
             return execute_command_invalid_syntax;
         }
-    } else if (strcmp(operation, "Save") == 0) {
+    } else if (strcmp(operation, "save") == 0) {
         char file_name[50];
-        if (sscanf(command, "Save %c, %s;", &array_name, file_name) == 2) {
+        if (sscanf(command, "save %c, %s;", &array_name, file_name) == 2) {
+            array_name = toupper(array_name);
             if (save_array(&state->variables[array_name - 'A'], file_name) == save_array_fail) {
                 return execute_command_invalid_syntax;
             }
         } else {
             return execute_command_invalid_syntax;
         }
-    } else if (strcmp(operation, "Rand") == 0) {
-        if (sscanf(command, "Rand %c, %d, %d, %d;", &array_name, &count, &lb, &rb) == 4) {
+    } else if (strcmp(operation, "rand") == 0) {
+        if (sscanf(command, "rand %c, %d, %d, %d;", &array_name, &count, &lb, &rb) == 4) {
+            array_name = toupper(array_name);
             if (fill_random(&state->variables[array_name - 'A'], count, lb, rb) == fill_random_invalid_parameter) {
                 return execute_command_invalid_syntax;
             }
         } else {
             return execute_command_invalid_syntax;
         }
-    } else if (strcmp(operation, "Concat") == 0) {
+    } else if (strcmp(operation, "concat") == 0) {
         char second_array_name;
-        if (sscanf(command, "Concat %c, %c;", &array_name, &second_array_name) == 2) {
+        if (sscanf(command, "concat %c, %c;", &array_name, &second_array_name) == 2) {
+            array_name = toupper(array_name);
+            second_array_name = toupper(second_array_name);
             if (concat_arrays(&state->variables[array_name - 'A'],
                               &state->variables[array_name - 'A'],
                               &state->variables[second_array_name - 'A']) == concat_arrays_invalid_parameter) {
@@ -283,23 +297,27 @@ enum execute_command_status_code execute_command(interpreter_state* state, const
         } else {
             return execute_command_invalid_syntax;
         }
-    } else if (strcmp(operation, "Free") == 0) {
-        if (sscanf(command, "Free %c;", &array_name) == 1) {
+    } else if (strcmp(operation, "free") == 0) {
+        if (sscanf(command, "free %c;", &array_name) == 1) {
+            array_name = toupper(array_name);
             free_array(&state->variables[array_name - 'A']);
         } else {
             return execute_command_invalid_syntax;
         }
-    } else if (strcmp(operation, "Remove") == 0) {
-        if (sscanf(command, "Remove %c, %d, %d;", &array_name, &start, &count) == 3) {
+    } else if (strcmp(operation, "remove") == 0) {
+        if (sscanf(command, "remove %c, %d, %d;", &array_name, &start, &count) == 3) {
+            array_name = toupper(array_name);
             if (remove_elements(&state->variables[array_name - 'A'], start, count) == remove_elements_invalid_parameter) {
                 return execute_command_invalid_syntax;
             }
         } else {
             return execute_command_invalid_syntax;
         }
-    } else if (strcmp(operation, "Copy") == 0) {
+    } else if (strcmp(operation, "copy") == 0) {
         char dest_array_name;
-        if (sscanf(command, "Copy %c, %d, %d, %c;", &array_name, &start, &end, &dest_array_name) == 4) {
+        if (sscanf(command, "copy %c, %d, %d, %c;", &array_name, &start, &end, &dest_array_name) == 4) {
+            array_name = toupper(array_name);
+            dest_array_name = toupper(dest_array_name);
             if (copy_elements(&state->variables[dest_array_name - 'A'],
                               &state->variables[array_name - 'A'], start, end) == copy_elements_invalid_parameter) {
                 return execute_command_invalid_syntax;
@@ -307,8 +325,10 @@ enum execute_command_status_code execute_command(interpreter_state* state, const
         } else {
             return execute_command_invalid_syntax;
         }
-    } else if (strcmp(operation, "Sort") == 0) {
-        if (sscanf(command, "Sort %c%c;", &array_name, &target_array) == 2) {
+    } else if (strcmp(operation, "sort") == 0) {
+        if (sscanf(command, "sort %c%c;", &array_name, &target_array) == 2) {
+            array_name = toupper(array_name);
+            target_array = toupper(target_array);
             if (target_array == '+') {
                 sort_array_asc(&state->variables[array_name - 'A']);
             } else if (target_array == '-') {
@@ -319,14 +339,16 @@ enum execute_command_status_code execute_command(interpreter_state* state, const
         } else {
             return execute_command_invalid_syntax;
         }
-    } else if (strcmp(operation, "Shuffle") == 0) {
-        if (sscanf(command, "Shuffle %c;", &array_name) == 1) {
+    } else if (strcmp(operation, "shuffle") == 0) {
+        if (sscanf(command, "shuffle %c;", &array_name) == 1) {
+            array_name = toupper(array_name);
             shuffle_array(&state->variables[array_name - 'A']);
         } else {
             return execute_command_invalid_syntax;
         }
-    } else if (strcmp(operation, "Stats") == 0) {
-        if (sscanf(command, "Stats %c;", &array_name) == 1) {
+    } else if (strcmp(operation, "stats") == 0) {
+        if (sscanf(command, "stats %c;", &array_name) == 1) {
+            array_name = toupper(array_name);
             double result[9];
             if (print_stats(&state->variables[array_name - 'A'], result) == print_stats_fail) {
                 return execute_command_invalid_syntax;
@@ -344,9 +366,10 @@ enum execute_command_status_code execute_command(interpreter_state* state, const
         } else {
             return execute_command_invalid_syntax;
         }
-    } else if (strcmp(operation, "Print") == 0) {
+    } else if (strcmp(operation, "print") == 0) {
         char print_type[5];
-        if (sscanf(command, "Print %c, %s", &array_name, print_type) == 2) {
+        if (sscanf(command, "print %c, %s", &array_name, print_type) == 2) {
+            array_name = toupper(array_name);
             if (strcmp(print_type, "all;") == 0) {
                 // Print all elements
                 for (int i = 0; i < state->variables[array_name - 'A'].array.size; ++i) {
@@ -354,7 +377,8 @@ enum execute_command_status_code execute_command(interpreter_state* state, const
                 }
                 printf("\n");
             } else {
-                if (sscanf(command, "Print %c, %d, %d;", &array_name, &start, &end) == 3) {
+                if (sscanf(command, "print %c, %d, %d;", &array_name, &start, &end) == 3) {
+                    array_name = toupper(array_name);
                     // Print elements from start to end
                     if (start > end || end > state->variables[array_name - 'A'].array.size){
                         return execute_command_invalid_syntax;
@@ -363,8 +387,9 @@ enum execute_command_status_code execute_command(interpreter_state* state, const
                         printf("%d ", state->variables[array_name - 'A'].array.data[i]);
                     }
                     printf("\n");
-                } else if (sscanf(command, "Print %c, %d;", &array_name, &position) == 2){
-                    if (position >= state->variables[array_name - 'A'].array.size){
+                } else if (sscanf(command, "print %c, %d;", &array_name, &position) == 2){
+                    array_name = toupper(array_name);
+                    if (position > state->variables[array_name - 'A'].array.size){
                         return execute_command_invalid_syntax;
                     }
                     printf("%d\n", state->variables[array_name - 'A'].array.data[position]);
@@ -408,11 +433,9 @@ int main(int argc, char* argv[]) {
     FILE* file = fopen(instructions_file, "r");
     if (file == NULL) {
         fprintf(stderr, "Error opening file: %s\n", instructions_file);
-        
         for (int i = 0; i < 26; ++i){
             free(state.variables[i].array.data);
         }
-        
         return 1;
     }
 
