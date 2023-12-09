@@ -319,7 +319,9 @@ enum delete_mail_status_code delete_mail(Post* post, const Mail mail){
     free_mail(&(post->mails[index_mail]));
     post->number_mails--;
 
-    Mail* tmp = (Mail*)realloc(post->mails, sizeof(Mail) * post->number_mails);
+    Mail* tmp = NULL;
+
+    tmp = (Mail*)realloc(post->mails, sizeof(Mail) * post->number_mails);
 
     if (tmp = NULL){
         return delete_mail_fail;
@@ -401,17 +403,19 @@ enum received_mail_status_code received_mail(const Post* post){
 enum late_mail_status_code late_mail(const Post* post) {
     unsigned number_mails = 0;
     time_t rawtime;
-    struct tm *timeinfo;
+    struct tm* timeinfo;
+    struct tm time_given;
 
     time(&rawtime);
     timeinfo = localtime(&rawtime);
 
-    Mail *mails = NULL;  // Initialize the array
+    Mail* mails = NULL;
     for (int i = 0; i < post->number_mails; i++) {
         if (post->mails[i].is_recieved == 0) {
-            time_t handle_time = parse_date(post->mails[i].handle_date.data);
-            if ((handle_time - rawtime) < 1990) {
-                mails = (Mail *)realloc(mails, sizeof(Mail) * (number_mails + 1));
+            strptime(post->mails[i].handle_date.data, "%d:%m:%Y %H:%M:%S", &time_given);
+            time_t time_op = mktime(&time_given);
+            if ((time_op - rawtime) < 0) {
+                mails = (Mail*)realloc(mails, sizeof(Mail) * (number_mails + 1));
 
                 if (mails == NULL) {
                     return late_mail_fail;
@@ -431,7 +435,65 @@ enum late_mail_status_code late_mail(const Post* post) {
                mail.receiver.number_house, mail.receiver.building, mail.receiver.flat_number);
     }
 
-    free(mails);\
+    free(mails);
     return late_mail_ok;
 }
 
+
+int main (){
+    Post post;
+    Mail mail;
+    char id[14];
+    // TODO create(mail)
+
+    while (1){
+        char choice;
+        printf("The choices are: <1> Add Mail <2> Delete Mail <3> Find mail <4> Print received mails <5> Print late mails <0> Exit\n");
+        scanf("%c" , &choice);
+
+        switch (choice)
+        {
+            // Add Mail
+        case '1':
+            create_mail();
+            if (add_mail == add_mail_ok){
+                printf("Mail added successfully\n");
+            }
+            break;
+            // Delete Mail
+        case '2':
+            if (delete_mail == delete_mail_ok){
+                printf("Mail is deleted successfully\n");
+            } else {
+                perror("Something went wrong\n");
+            }
+            break;
+            // Find Mail
+        case '3':
+            if (print_mail(&post, id) != print_mail_ok){
+                perror("Something went wrong\n");
+            }
+            break;
+            // Print Received
+        case '4':
+            if (received_mail != received_mail_ok){
+                perror("Somethin went wrong\n");
+            }
+            break;
+            // Print late
+        case '5':
+            if (late_mail != late_mail_ok){
+                perror("Somethin went wrong\n");
+            }
+            break;
+            // Exit
+        case '0':
+            return 0;
+            break;
+
+        default:
+            printf("Invalid choice\n");
+            break;
+        }
+    }
+}
